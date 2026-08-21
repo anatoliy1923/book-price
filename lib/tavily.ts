@@ -1,4 +1,4 @@
-import { extractBookData } from './gemini';
+import { GeminiBookData, extractBookData } from './gemini';
 
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 const BASE_URL = 'https://api.tavily.com';
@@ -58,7 +58,7 @@ function getDomain(url: string): string {
 }
 
 // Perform a broad search on Tavily (like Google)
-async function fetchBroadSearch(searchQuery: string): Promise<Array<{url: string, content: string}>> {
+async function fetchBroadSearch(searchQuery: string, includeDomains?: string[]): Promise<Array<{url: string, content: string}>> {
   try {
     const res = await fetch(`${BASE_URL}/search`, {
       method: 'POST',
@@ -68,6 +68,7 @@ async function fetchBroadSearch(searchQuery: string): Promise<Array<{url: string
         query: searchQuery,
         search_depth: 'basic',
         max_results: 15,
+        ...(includeDomains && { include_domains: includeDomains })
       }),
     });
     if (!res.ok) return [];
@@ -95,14 +96,57 @@ async function extractPage(url: string): Promise<string> {
   }
 }
 
-export async function searchBookPrices(query: string): Promise<BookSearchResult> {
-  // Step 1: Do 2 broad searches to cast a wide net across the Ukrainian web
-  const searchResults = await Promise.all([
+// Basic regex parser fallback
+function regexParsePrice(html: string): { price: number | null; oldPrice: number | null; discount: number | null; available: boolean } {
+  const lc = html.toLowerCase();
+  const available = !['немає в наявності', 'відсутній', 'закінчився', 'out of stock'].some((kw) => lc.includes(kw));
+
+  const prices: number[] = [];
+  const regex = /([0-9]{2,4})\s*(грн|₴|uah|₴)/gi;
+  let match;
+  while ((match = regex.exec(html)) !== null) {
+    const p = parseInt(match[1], 10);
+    if (p >= 50 && p <= 5000) prices.push(p);
+  }
+
+  if (prices.length === 0) return { price: null, oldPrice: null, discount: null, available };
+
+  prices.sort((a, b) => a - b);
+  const price = prices[0];
+  let oldPrice = prices.find((p) => p > price && p <= price * 3) || null;
+  let discount = null;
+
+  if (oldPrice) {
+    discount = Math.round(((oldPrice - price) / oldPrice) * 100);
+    if (discount < 1 || discount > 70) {
+      oldPrice = null;
+      discount = null;
+    }
+  }
+
+  return { price, oldPrice, discount, available };
+}
+
+export async function searchBookPrices(
+  query: string,
+  specificStoreDomain: string | null = null,
+  specificStoreName: string | null = null
+): Promise<BookSearchResult> {
+  
+  const searchPromises = [
     fetchBroadSearch(`${query} купити книга`),
     fetchBroadSearch(`${query} ціна грн`)
-  ]);
+  ];
 
-  const allFound = [...searchResults[0], ...searchResults[1]];
+  // If the user requested a specific store, add a 3rd search strictly for it
+  if (specificStoreName) {
+    searchPromises.push(
+      fetchBroadSearch(`${query} купити ${specificStoreName}`, specificStoreDomain ? [specificStoreDomain] : undefined)
+    );
+  }
+
+  const searchResults = await Promise.all(searchPromises);
+  const allFound = searchResults.flat();
 
   // Step 2: Group by domain, filter junk, prefer product pages
   const domainMap = new Map<string, {url: string, snippet: string}>();
@@ -110,8 +154,9 @@ export async function searchBookPrices(query: string): Promise<BookSearchResult>
   for (const item of allFound) {
     const domain = getDomain(item.url);
     if (!domain || JUNK_DOMAINS.includes(domain)) continue;
-    // Only accept .ua domains or explicitly known bookstores
-    if (!domain.endsWith('.ua') && !KNOWN_STORES[domain]) continue;
+    
+    // Accept .ua domains, or explicitly known bookstores, OR the user's specific requested store domain
+    if (!domain.endsWith('.ua') && !KNOWN_STORES[domain] && domain !== specificStoreDomain) continue;
 
     const isProduct = !item.url.includes('/search') && !item.url.includes('/catalog') && !item.url.includes('/category');
 
@@ -126,7 +171,7 @@ export async function searchBookPrices(query: string): Promise<BookSearchResult>
   // Take top 12 unique domains to process
   const topStores = Array.from(domainMap.entries()).slice(0, 12).map(([domain, data]) => ({
     domain,
-    name: KNOWN_STORES[domain] || domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1),
+    name: KNOWN_STORES[domain] || (domain === specificStoreDomain && specificStoreName ? specificStoreName : domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1)),
     url: data.url,
     snippet: data.snippet
   }));
@@ -178,6 +223,12 @@ export async function searchBookPrices(query: string): Promise<BookSearchResult>
 
   // Step 5: Sort
   prices.sort((a, b) => {
+    // If user requested a specific store, it should appear at the top!
+    if (specificStoreDomain) {
+      if (a.domain === specificStoreDomain && b.domain !== specificStoreDomain) return -1;
+      if (a.domain !== specificStoreDomain && b.domain === specificStoreDomain) return 1;
+    }
+
     const aOk = a.available && a.price !== null;
     const bOk = b.available && b.price !== null;
     if (aOk && !bOk) return -1;
@@ -193,41 +244,4 @@ export async function searchBookPrices(query: string): Promise<BookSearchResult>
     prices,
     cachedAt: new Date().toISOString(),
   };
-}
-
-// Regex fallback when Gemini is unavailable
-function regexParsePrice(content: string): {
-  price: number | null;
-  oldPrice: number | null;
-  discount: number | null;
-  available: boolean;
-} {
-  const pattern = /(\d[\d\s]{0,6}(?:[.,]\d{1,2})?)\s*(?:грн|₴)/gi;
-  const matches = [...content.matchAll(pattern)];
-  const prices: number[] = [];
-
-  for (const m of matches) {
-    const num = parseFloat(m[1].replace(/\s/g, '').replace(',', '.'));
-    // Realistic book price range
-    if (!isNaN(num) && num >= 50 && num <= 5000) prices.push(num);
-  }
-
-  const unique = [...new Set(prices)].sort((a, b) => a - b);
-  const lc = content.toLowerCase();
-  const available = !['немає в наявності', 'відсутній', 'закінчився', 'out of stock'].some(
-    (kw) => lc.includes(kw)
-  );
-
-  if (unique.length === 0) return { price: null, oldPrice: null, discount: null, available };
-
-  const price = unique[0];
-  const max = unique[unique.length - 1];
-
-  // Old price: must be higher but no more than 3x (avoids ISBN/barcode garbage)
-  const oldPrice = max > price * 1.05 && max <= price * 3 ? max : null;
-  const discount = oldPrice ? Math.round((1 - price / oldPrice) * 100) : null;
-  // Discard if discount looks unrealistic
-  const validDiscount = discount !== null && discount <= 70 ? discount : null;
-
-  return { price, oldPrice: validDiscount ? oldPrice : null, discount: validDiscount, available };
 }

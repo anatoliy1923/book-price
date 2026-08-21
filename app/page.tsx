@@ -24,7 +24,7 @@ function urlBase64ToUint8Array(base64String: string) {
 export default function Home() {
   const [loading, setLoading] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
-  const [result, setResult] = useState<(BookSearchResult & { fromCache?: boolean }) | null>(null);
+  const [result, setResult] = useState<(BookSearchResult & { fromCache?: boolean, _storeInput?: string }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [watched, setWatched] = useState<WatchedMap>({});
   
@@ -71,7 +71,7 @@ export default function Home() {
     }
   };
 
-  const doSearch = useCallback(async (query: string, forceRefresh = false) => {
+  const doSearch = useCallback(async (query: string, store: string = '', forceRefresh = false) => {
     setError(null);
     if (forceRefresh) setRefreshing(true);
     else setLoading(true);
@@ -80,7 +80,7 @@ export default function Home() {
     setStatusText('Нормалізація запиту через ШІ...');
 
     const texts = [
-      'Шукаємо в 11 книгарнях...',
+      'Шукаємо в книгарнях...',
       'Завантажуємо сторінки...',
       'ШІ перевіряє наявність та ціни...',
       'Формуємо результати...'
@@ -96,7 +96,7 @@ export default function Home() {
       const res = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, forceRefresh }),
+        body: JSON.stringify({ query, store, forceRefresh }),
       });
 
       const data = await res.json();
@@ -106,7 +106,7 @@ export default function Home() {
         return;
       }
 
-      setResult(data);
+      setResult({ ...data, _storeInput: store });
     } catch {
       setError('Перевірте підʼєднання до інтернету');
     } finally {
@@ -121,13 +121,13 @@ export default function Home() {
     }
   }, []);
 
-  const handleSearch = (query: string) => {
+  const handleSearch = (query: string, store: string) => {
     setResult(null);
-    doSearch(query);
+    doSearch(query, store);
   };
 
   const handleRefresh = () => {
-    if (result) doSearch(result.query, true);
+    if (result) doSearch(result.query, result._storeInput || '', true);
   };
 
   const handleToggleWatch = async () => {

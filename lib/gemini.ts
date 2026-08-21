@@ -1,19 +1,20 @@
 import { GoogleGenAI } from '@google/genai';
+import { BookPrice } from './tavily';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-// Fallback model chain: try each in order if the previous fails
-const MODEL_CHAIN = [
-  'gemini-3.5-flash',
-  'gemini-3.5-flash-lite',
-  'gemini-3.1-flash-lite',
-];
+export interface GeminiBookData {
+  isCorrectBook: boolean;
+  price: number | null;
+  oldPrice: number | null;
+  discount: number | null;
+  available: boolean;
+  title?: string;
+  author?: string;
+}
 
-const SYSTEM_PROMPT = `You are a precise book data extractor for a Ukrainian book price comparison service.
-
-Given a webpage content and a search query (book name/author), your job is to:
-1. Determine if this webpage is a PRODUCT PAGE for the specific book being searched
-2. Extract structured pricing data
+const SYSTEM_PROMPT = `You are a strict data extraction assistant.
+Your goal is to parse book product pages and extract pricing.
 
 CRITICAL RULES:
 1. "isCorrectBook" = true ONLY if the page is a product page for the searched book.
@@ -28,37 +29,39 @@ CRITICAL RULES:
 JSON schema:
 {
   "isCorrectBook": boolean,
-  "title": string,
-  "author": string,
-  "price": number | null,
-  "oldPrice": number | null,
-  "discount": number | null,
+  "title": "string or null",
+  "author": "string or null",
+  "price": number or null,
+  "oldPrice": number or null,
+  "discount": number or null,
   "available": boolean
 }`;
 
-export interface GeminiBookData {
-  isCorrectBook: boolean;
-  title: string;
-  author: string;
-  price: number | null;
-  oldPrice: number | null;
-  discount: number | null;
-  available: boolean;
-}
+function sanitize(data: Partial<GeminiBookData>): GeminiBookData | null {
+  if (data.isCorrectBook === undefined) return null;
 
-function sanitize(data: GeminiBookData): GeminiBookData {
-  // Sanity checks — reject impossible values
-  let { price, oldPrice, discount } = data;
+  let { price, oldPrice, discount, available } = data;
 
-  if (price !== null && (price < 30 || price > 8000)) price = null;
-  if (oldPrice !== null && price !== null) {
-    // Old price must be higher than current and no more than 3x
+  if (price !== null && price !== undefined) {
+    if (price < 30 || price > 8000) price = null;
+  }
+  if (oldPrice !== null && oldPrice !== undefined && price !== null) {
     if (oldPrice <= price || oldPrice > price * 3) oldPrice = null;
   }
-  if (oldPrice === null) discount = null;
-  if (discount !== null && (discount < 1 || discount > 70)) discount = null;
+  if (discount !== null && discount !== undefined) {
+    if (discount < 1 || discount > 70) discount = null;
+  }
+  if (available === undefined) available = false;
 
-  return { ...data, price, oldPrice, discount };
+  return {
+    isCorrectBook: data.isCorrectBook,
+    title: data.title,
+    author: data.author,
+    price: price ?? null,
+    oldPrice: oldPrice ?? null,
+    discount: discount ?? null,
+    available,
+  };
 }
 
 export async function extractBookData(
@@ -66,16 +69,10 @@ export async function extractBookData(
   searchQuery: string,
   searchSnippet: string = ''
 ): Promise<GeminiBookData | null> {
-  if (!GEMINI_API_KEY) {
-    console.warn('[gemini] No API key set');
-    return null;
-  }
+  if (!GEMINI_API_KEY) return null;
 
   const client = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-
-  // First 5000 chars usually contain title, price, author
   const truncated = pageContent.slice(0, 5000);
-
   const userMessage = `Search query: "${searchQuery}"
 
 Search Engine Snippet (Highly reliable for price):
@@ -86,71 +83,69 @@ ${truncated}
 
 Return JSON only.`;
 
-  for (const modelId of MODEL_CHAIN) {
-    try {
-      const response = await client.models.generateContent({
-        model: modelId,
-        contents: [{ role: 'user', parts: [{ text: userMessage }] }],
-        config: {
-          systemInstruction: SYSTEM_PROMPT,
-          temperature: 0,
-        },
-      });
+  try {
+    const response = await client.models.generateContent({
+      model: 'gemini-3.5-flash',
+      contents: [{ role: 'user', parts: [{ text: userMessage }] }],
+      config: {
+        systemInstruction: SYSTEM_PROMPT,
+        temperature: 0.1,
+        responseMimeType: 'application/json',
+      },
+    });
 
-      const text = response.text?.trim() ?? '';
-      if (!text) continue;
-
-      // Strip markdown fences if present
-      const json = text
-        .replace(/^```(?:json)?\s*/i, '')
-        .replace(/\s*```$/, '')
-        .trim();
-
-      const parsed = JSON.parse(json) as GeminiBookData;
-      if (typeof parsed.isCorrectBook !== 'boolean') continue;
-
-      return sanitize(parsed);
-    } catch (err) {
-      console.warn(
-        `[gemini] ${modelId} failed:`,
-        err instanceof Error ? err.message : String(err)
-      );
-      continue;
-    }
+    const text = response.text?.trim() || '';
+    const parsed = JSON.parse(text);
+    return sanitize(parsed);
+  } catch (err) {
+    return null;
   }
-
-  console.error('[gemini] All models failed for query:', searchQuery);
-  return null;
 }
 
-// Analyzes and normalizes the user's search query for better search accuracy
-export async function normalizeSearchQuery(rawQuery: string): Promise<string> {
-  if (!GEMINI_API_KEY) return rawQuery;
+export async function normalizeSearchQuery(rawQuery: string, specificStore?: string): Promise<{ query: string, storeDomain: string | null, storeName: string | null }> {
+  if (!GEMINI_API_KEY) {
+    return { query: rawQuery, storeDomain: null, storeName: null };
+  }
+  
   const client = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
   const prompt = `Ти помічник для пошуку книжок.
-Твоя задача — виправити помилки та нормалізувати запит користувача у чистий формат "Назва книжки Автор" українською мовою.
-Якщо це лише автор — поверни його повне ім'я (наприклад "камю" -> "Альбер Камю").
-Якщо це серія або відома книжка, напиши правильну назву.
-Запит: "${rawQuery}"
-Поверни ЛИШЕ нормалізований рядок, без лапок, без крапок в кінці і без жодних пояснень.`;
+Запит на книгу: "${rawQuery}"
+Специфічний магазин (необов'язково): "${specificStore || ''}"
+
+Твоя задача:
+1. Нормалізувати запит на книгу у формат "Назва Автор" (виправити помилки).
+2. Якщо вказано специфічний магазин, визначити його офіційний домен (наприклад "мегого букс" -> "megogo.net", "сенс" -> "sens.in.ua", "віват" -> "vivat.ua") та правильну капіталізовану назву. Якщо магазин не вказано, поверни null.
+
+Поверни ЛИШЕ валідний JSON у такому форматі:
+{
+  "query": "Нормалізований запит",
+  "storeDomain": "domain.com",
+  "storeName": "Назва магазину"
+}
+Якщо магазин не вказано, або ти його не знаєш, поверни null для домену та назви.
+`;
 
   try {
     const response = await client.models.generateContent({
       model: 'gemini-3.5-flash',
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: { temperature: 0.1 },
+      config: { temperature: 0.1, responseMimeType: 'application/json' },
     });
 
-    const text = response.text?.trim().replace(/["«»]/g, '');
+    const text = response.text?.trim() || '';
+    const parsed = JSON.parse(text);
     
-    // Sanity check: if it's too long or looks like JSON, ignore it
-    if (text && text.length > 2 && text.length < 100 && !text.includes('{')) {
-      return text;
+    if (parsed.query && typeof parsed.query === 'string') {
+      return {
+        query: parsed.query.replace(/["«»]/g, ''),
+        storeDomain: parsed.storeDomain || null,
+        storeName: parsed.storeName || null
+      };
     }
   } catch (err) {
     console.warn('[gemini] Query normalization failed:', err instanceof Error ? err.message : String(err));
   }
   
-  return rawQuery; // fallback to original
+  return { query: rawQuery, storeDomain: null, storeName: null };
 }
