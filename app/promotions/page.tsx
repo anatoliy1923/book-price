@@ -7,37 +7,57 @@ import Skeleton from '@/components/Skeleton';
 export default function PromotionsPage() {
   const [promos, setPromos] = useState<Promo[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function loadPromos() {
-      try {
-        const res = await fetch('/api/promotions');
-        const data = await res.json();
-        if (data.promos) {
-          setPromos(data.promos);
-        } else {
-          setError('Не вдалося завантажити акції');
-        }
-      } catch (err) {
-        setError('Помилка з\'єднання');
-      } finally {
-        setLoading(false);
+  const fetchPromos = async (force: boolean = false) => {
+    try {
+      if (force) setRefreshing(true);
+      const res = await fetch(`/api/promotions${force ? '?force=true' : ''}`);
+      const data = await res.json();
+      if (data.promos) {
+        setPromos(data.promos);
+      } else {
+        setError('Не вдалося завантажити акції');
       }
+    } catch (err) {
+      setError('Помилка з\'єднання');
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
     }
-    loadPromos();
+  };
+
+  useEffect(() => {
+    fetchPromos();
   }, []);
 
   return (
     <div className="animate-in fade-in duration-500">
-      <h1 className="text-[32px] md:text-[36px] font-bold tracking-tight text-vivat-dark mb-2">
-        Акції та знижки
-      </h1>
+      <div className="flex justify-between items-start mb-2">
+        <h1 className="text-[32px] md:text-[36px] font-bold tracking-tight text-vivat-dark">
+          Акції та знижки
+        </h1>
+        <button
+          onClick={() => fetchPromos(true)}
+          disabled={loading || refreshing}
+          className={`text-[13px] bg-vivat-light text-vivat-dark px-3 py-2 rounded-xl transition-all font-medium flex items-center gap-2 ${
+            (loading || refreshing) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-vivat/20 active:scale-95'
+          }`}
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className={refreshing ? 'animate-spin' : ''}>
+            <polyline points="23 4 23 10 17 10"></polyline>
+            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
+          </svg>
+          {refreshing ? 'Оновлення...' : 'Оновити'}
+        </button>
+      </div>
+      
       <p className="text-[15px] text-gray-500 mb-8 max-w-sm">
-        Зібрані актуальні пропозиції з твоїх улюблених книгарень: Megogo, Readeat, КСД, Лабораторія, Vivat, Сенс.
+        Зібрані актуальні пропозиції з твоїх улюблених книгарень: Megogo, Readeat, КСД, Лабораторія, Vivat, Сенс. (Включаючи Instagram/Telegram).
       </p>
 
-      {loading && (
+      {(loading || refreshing) && promos.length === 0 && (
         <div className="mt-8">
           <Skeleton count={3} />
         </div>
@@ -55,8 +75,8 @@ export default function PromotionsPage() {
         </div>
       )}
 
-      {!loading && promos.length > 0 && (
-        <div className="grid gap-4 mt-6">
+      {promos.length > 0 && (
+        <div className={`grid gap-4 mt-6 transition-opacity duration-300 ${refreshing ? 'opacity-50' : 'opacity-100'}`}>
           {promos.map((promo, idx) => (
             <a
               key={idx}

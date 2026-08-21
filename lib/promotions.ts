@@ -22,30 +22,47 @@ const PROMO_STORES = [
 export async function fetchPromotions(): Promise<Promo[]> {
   if (!TAVILY_API_KEY || !GEMINI_API_KEY) return [];
 
-  const domains = PROMO_STORES.map(s => s.domain);
+  const storeDomains = PROMO_STORES.map(s => s.domain);
+  const socialDomains = ['instagram.com', 'facebook.com', 't.me'];
   
   try {
-    const res = await fetch(`https://api.tavily.com/search`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        api_key: TAVILY_API_KEY,
-        query: "акції знижки 1+1 розпродаж",
-        search_depth: "basic",
-        max_results: 20,
-        include_domains: domains
+    const [storeRes, socialRes] = await Promise.all([
+      // 1. Пошук по офіційних сайтах
+      fetch(`https://api.tavily.com/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_key: TAVILY_API_KEY,
+          query: "акції знижки 1+1 розпродаж",
+          search_depth: "basic",
+          max_results: 15,
+          include_domains: storeDomains
+        })
+      }),
+      // 2. Пошук по соцмережах (Instagram, FB, Telegram) для цих магазинів
+      fetch(`https://api.tavily.com/search`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          api_key: TAVILY_API_KEY,
+          query: "акція знижка 1+1 розпродаж (Megogo OR Readeat OR КСД OR Лабораторія OR Vivat OR Сенс книгарня)",
+          search_depth: "basic",
+          max_results: 15,
+          include_domains: socialDomains
+        })
       })
-    });
+    ]);
 
-    if (!res.ok) return [];
-    const data = await res.json();
-    const results = data.results || [];
+    const storeData = storeRes.ok ? await storeRes.json() : { results: [] };
+    const socialData = socialRes.ok ? await socialRes.json() : { results: [] };
+    
+    const results = [...(storeData.results || []), ...(socialData.results || [])];
 
     if (!results.length) return [];
 
     const client = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
     const prompt = `Ти аналізатор акцій українських книгарень.
-Ось результати пошуку зі сторінок вибраних магазинів.
+Ось результати пошуку з офіційних сайтів та соцмереж (Instagram, FB, Telegram).
 Твоя задача: знайти ГЛОБАЛЬНІ акції (наприклад "1+1=3", "-20% на всі комікси", "Безкоштовна доставка", "Свято" тощо).
 Пропускай звичайні поодинокі знижки на одну конкретну книгу. Якщо акцій немає, поверни пустий масив.
 
@@ -57,8 +74,8 @@ ${JSON.stringify(results.map((r: any) => ({ url: r.url, snippet: r.content })), 
   {
     "store": "Назва магазину (Megogo, Readeat, КСД, Лабораторія, Vivat або Сенс)",
     "title": "Коротка назва акції",
-    "description": "Опис акції (1-2 речення)",
-    "url": "URL сторінки акції"
+    "description": "Опис акції (1-2 речення). Якщо це з соцмереж, вкажи це.",
+    "url": "URL сторінки акції або поста"
   }
 ]
 Поверни ТІЛЬКИ валідний JSON масив. Без розмітки маркдаун.`;
