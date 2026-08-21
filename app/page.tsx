@@ -1,12 +1,25 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import SearchBar from '@/components/SearchBar';
 import BookResultCard from '@/components/BookResultCard';
 import Skeleton from '@/components/Skeleton';
 import type { BookSearchResult } from '@/lib/tavily';
 
 type WatchedMap = Record<string, boolean>;
+
+const VAPID_PUBLIC_KEY = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding).replace(/\-/g, '+').replace(/_/g, '/');
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
 
 export default function Home() {
   const [loading, setLoading] = useState(false);
@@ -15,9 +28,48 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   const [watched, setWatched] = useState<WatchedMap>({});
   
-  // Progress bar states
   const [progress, setProgress] = useState(0);
   const [statusText, setStatusText] = useState('');
+  const [pushEnabled, setPushEnabled] = useState(false);
+
+  useEffect(() => {
+    if ('serviceWorker' in navigator && 'PushManager' in window) {
+      navigator.serviceWorker.register('/sw.js').then(reg => {
+        reg.pushManager.getSubscription().then(sub => {
+          if (sub) setPushEnabled(true);
+        });
+      });
+    }
+  }, []);
+
+  const subscribeToPush = async () => {
+    if (!VAPID_PUBLIC_KEY) {
+      alert("VAPID ключ не налаштовано!");
+      return;
+    }
+    try {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY)
+        });
+        
+        await fetch('/api/subscribe', {
+          method: 'POST',
+          body: JSON.stringify(sub),
+          headers: { 'Content-Type': 'application/json' }
+        });
+        
+        setPushEnabled(true);
+        alert("Сповіщення успішно увімкнено!");
+      }
+    } catch (e) {
+      console.error(e);
+      alert("Не вдалось увімкнути сповіщення.");
+    }
+  };
 
   const doSearch = useCallback(async (query: string, forceRefresh = false) => {
     setError(null);
@@ -27,7 +79,6 @@ export default function Home() {
     setProgress(15);
     setStatusText('Нормалізація запиту через ШІ...');
 
-    // Cycle texts to keep user engaged
     const texts = [
       'Шукаємо в 11 книгарнях...',
       'Завантажуємо сторінки...',
@@ -81,90 +132,71 @@ export default function Home() {
 
   const handleToggleWatch = async () => {
     if (!result) return;
-
     const key = result.query;
     const isWatched = watched[key];
+    setWatched((prev) => ({ ...prev, [key]: !isWatched }));
 
-    if (isWatched) {
-      // Remove from watchlist - would need to store the ID
-      // For simplicity, just toggle local state
-      setWatched((prev) => ({ ...prev, [key]: false }));
-    } else {
-      const bestPrice = result.prices
-        .filter((p) => p.available && p.price !== null)
-        .map((p) => p.price as number)
-        .sort((a, b) => a - b)[0] || null;
+    try {
+      if (isWatched) {
+        await fetch('/api/watchlist', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ query: result.query }),
+        });
+      } else {
+        const prices = result.prices.filter((p) => p.price !== null && p.available);
+        const bestPrice = prices.length > 0 ? Math.min(...prices.map((p) => p.price!)) : null;
 
-      try {
-        const res = await fetch('/api/watchlist', {
+        await fetch('/api/watchlist', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             title: result.title,
-            author: result.author || null,
+            author: result.author,
             query: result.query,
-            last_price: bestPrice,
+            lastPrice: bestPrice,
           }),
         });
-        if (res.ok) {
-          setWatched((prev) => ({ ...prev, [key]: true }));
-        }
-      } catch {
-        // Silently fail
       }
+    } catch {
+      setWatched((prev) => ({ ...prev, [key]: isWatched }));
     }
   };
 
   return (
-    <div>
-      {/* Top Progress Bar */}
+    <div className="animate-in fade-in duration-500">
       {progress > 0 && (
         <div
-          style={{
-            position: 'fixed',
-            top: 0,
-            left: 0,
-            height: '3px',
-            background: '#0071E3',
-            width: `${progress}%`,
-            transition: 'width 0.3s ease-out',
-            zIndex: 9999,
-          }}
+          className="fixed top-0 left-0 h-[3px] bg-vivat-accent z-[9999] transition-all duration-300 ease-out"
+          style={{ width: `${progress}%` }}
         />
       )}
 
-      {/* Page title */}
-      <h1
-        style={{
-          margin: '0 0 24px',
-          fontSize: '34px',
-          fontWeight: 700,
-          letterSpacing: '-0.5px',
-          color: '#1D1D1F',
-        }}
-      >
-        Ціни на книжки
-      </h1>
+      <div className="flex justify-between items-start mb-2">
+        <h1 className="text-[32px] md:text-[36px] font-bold tracking-tight text-vivat-dark">
+          Пошук книжок
+        </h1>
+        {typeof window !== 'undefined' && 'PushManager' in window && !pushEnabled && (
+          <button 
+            onClick={subscribeToPush}
+            className="text-[12px] bg-vivat-light text-vivat-dark px-3 py-1.5 rounded-lg hover:bg-vivat/20 transition-colors font-medium"
+          >
+            Увімкнути сповіщення
+          </button>
+        )}
+      </div>
 
-      {/* Search */}
-      <SearchBar onSearch={handleSearch} loading={loading} />
-
-      {/* Subtitle */}
-      <p
-        style={{
-          margin: '10px 0 32px',
-          fontSize: '13px',
-          color: '#AEAEB2',
-        }}
-      >
-        Порівнюємо ціни на Yakaboo, BookChef, Book.ua, Vivat та інших
+      <p className="text-[15px] text-gray-500 mb-8 max-w-sm">
+        Порівнюємо ціни в усіх українських інтернет-книгарнях одночасно
       </p>
 
-      {/* States */}
+      <SearchBar onSearch={handleSearch} loading={loading} />
+
       {loading && (
-        <div>
+        <div className="mt-8 animate-in fade-in slide-in-from-bottom-2 duration-500">
           {statusText && (
-            <p style={{ margin: '0 0 16px', fontSize: '15px', color: '#0071E3', fontWeight: 500 }}>
+            <p className="mb-4 text-[15px] text-vivat font-medium flex items-center gap-2">
+              <span className="w-4 h-4 border-2 border-vivat/30 border-t-vivat rounded-full animate-spin"></span>
               {statusText}
             </p>
           )}
@@ -173,38 +205,26 @@ export default function Home() {
       )}
 
       {error && !loading && (
-        <p
-          style={{
-            fontSize: '15px',
-            color: '#FF3B30',
-            marginTop: '24px',
-          }}
-        >
-          {error}
-        </p>
+        <div className="mt-6 p-4 bg-red-50 border border-red-100 rounded-2xl">
+          <p className="text-[15px] text-red-600 font-medium">{error}</p>
+        </div>
       )}
 
-      {result && !loading && (
-        <BookResultCard
-          result={result}
-          isWatched={watched[result.query] || false}
-          onToggleWatch={handleToggleWatch}
-          onRefresh={handleRefresh}
-          refreshing={refreshing}
-        />
+      {!loading && result && (
+        <div className="mt-6 animate-in slide-in-from-bottom-4 fade-in duration-500">
+          <BookResultCard
+            result={result}
+            isWatched={!!watched[result.query]}
+            onToggleWatch={handleToggleWatch}
+            onRefresh={handleRefresh}
+            refreshing={refreshing}
+          />
+        </div>
       )}
 
-      {!result && !loading && !error && (
-        <div
-          style={{
-            marginTop: '64px',
-            textAlign: 'center',
-            color: '#AEAEB2',
-          }}
-        >
-          <p style={{ fontSize: '15px', margin: 0 }}>
-            Введіть назву книжки щоб знайти найкращу ціну
-          </p>
+      {!loading && !result && !error && (
+        <div className="mt-12 text-center text-gray-400">
+          <p className="text-[15px]">Введіть назву книжки щоб знайти ціни</p>
         </div>
       )}
     </div>

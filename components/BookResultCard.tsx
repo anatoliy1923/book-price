@@ -23,22 +23,13 @@ function timeAgo(dateStr: string): string {
   return `${Math.floor(hours / 24)} дн тому`;
 }
 
-// Bookmark icon SVG
 function BookmarkIcon({ filled }: { filled: boolean }) {
   return (
-    <svg width="18" height="22" viewBox="0 0 18 22" fill="none">
+    <svg width="20" height="24" viewBox="0 0 18 22" fill="none" className="transition-transform active:scale-90">
       {filled ? (
-        <path
-          d="M3 1h12a2 2 0 0 1 2 2v17l-8-4-8 4V3a2 2 0 0 1 2-2z"
-          fill="#0071E3"
-        />
+        <path d="M3 1h12a2 2 0 0 1 2 2v17l-8-4-8 4V3a2 2 0 0 1 2-2z" fill="#E3A857" />
       ) : (
-        <path
-          d="M3 1h12a2 2 0 0 1 2 2v17l-8-4-8 4V3a2 2 0 0 1 2-2z"
-          stroke="#0071E3"
-          strokeWidth="1.5"
-          strokeLinejoin="round"
-        />
+        <path d="M3 1h12a2 2 0 0 1 2 2v17l-8-4-8 4V3a2 2 0 0 1 2-2z" stroke="#13543A" strokeWidth="1.5" strokeLinejoin="round" />
       )}
     </svg>
   );
@@ -57,135 +48,59 @@ export default function BookResultCard({
   const bestPrice = availablePrices.length > 0 ? Math.min(...availablePrices) : null;
 
   return (
-    <div
-      style={{
-        background: '#F5F5F7',
-        borderRadius: '12px',
-        padding: '20px',
-        marginBottom: '16px',
-      }}
-    >
-      {/* Header: title + bookmark */}
-      <div
-        style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'flex-start',
-          marginBottom: '4px',
-          gap: '12px',
-        }}
-      >
+    <div className="bg-white rounded-2xl p-5 mb-5 shadow-soft transition-all duration-300 hover:shadow-md border border-vivat-light">
+      {/* Header */}
+      <div className="flex justify-between items-start gap-4 mb-4">
         <div>
-          <h2
-            style={{
-              margin: 0,
-              fontSize: '17px',
-              fontWeight: 600,
-              color: '#1D1D1F',
-              letterSpacing: '-0.2px',
-              lineHeight: 1.3,
-            }}
-          >
+          <h2 className="text-[19px] font-semibold text-foreground leading-tight tracking-tight mb-1">
             {result.title}
           </h2>
           {result.author && (
-            <p
-              style={{
-                margin: '3px 0 0',
-                fontSize: '13px',
-                color: '#6E6E73',
-              }}
-            >
+            <p className="text-[15px] text-gray-500">
               {result.author}
-            </p>
-          )}
-          {bestPrice !== null && (
-            <p
-              style={{
-                margin: '6px 0 0',
-                fontSize: '13px',
-                color: '#6E6E73',
-              }}
-            >
-              Найкраща ціна:{' '}
-              <span style={{ color: '#1D1D1F', fontWeight: 500 }}>
-                {bestPrice.toLocaleString('uk-UA')} грн
-              </span>
             </p>
           )}
         </div>
         <button
           onClick={onToggleWatch}
-          title={isWatched ? 'Прибрати з відстеження' : 'Додати до відстеження'}
-          style={{
-            background: 'none',
-            border: 'none',
-            cursor: 'pointer',
-            padding: '4px',
-            flexShrink: 0,
-            lineHeight: 0,
-          }}
+          className="p-1 -m-1"
+          aria-label={isWatched ? 'Видалити з відстеження' : 'Додати до відстеження'}
         >
           <BookmarkIcon filled={isWatched} />
         </button>
       </div>
 
-      {/* Divider */}
-      <div
-        style={{
-          height: '1px',
-          background: '#D2D2D7',
-          margin: '16px 0',
-        }}
-      />
+      <div className="h-px bg-vivat-light my-4" />
 
-      {/* Price rows */}
+      {/* Prices List */}
       {result.prices.length === 0 ? (
-        <p style={{ fontSize: '15px', color: '#6E6E73', margin: 0 }}>
-          Жодного результату не знайдено
+        <p className="text-[15px] text-gray-500 my-4">
+          Жодної ціни не знайдено
         </p>
       ) : (
-        <div>
-          {result.prices.map((item) => (
+        <div className="flex flex-col gap-1">
+          {result.prices.map((price, idx) => (
             <PriceRow
-              key={item.domain}
-              item={item}
-              isBest={item.price === bestPrice && item.available}
+              key={`${price.domain}-${idx}`}
+              item={price}
+              isBest={price.price === bestPrice && bestPrice !== null}
             />
           ))}
         </div>
       )}
 
-      {/* Footer: cache timestamp + debug info + refresh */}
-      <div
-        style={{
-          marginTop: '16px',
-          paddingTop: '12px',
-          borderTop: '1px solid #D2D2D7',
-        }}
-      >
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'space-between',
-            alignItems: 'center',
-          }}
-        >
-          <span style={{ fontSize: '13px', color: '#AEAEB2' }}>
+      {/* Footer */}
+      <div className="mt-4 pt-4 border-t border-vivat-light">
+        <div className="flex justify-between items-center">
+          <span className="text-[13px] text-gray-400">
             Оновлено {timeAgo(result.cachedAt)}
           </span>
           <button
             onClick={onRefresh}
             disabled={refreshing}
-            style={{
-              background: 'none',
-              border: 'none',
-              cursor: refreshing ? 'default' : 'pointer',
-              fontSize: '13px',
-              color: refreshing ? '#AEAEB2' : '#0071E3',
-              padding: 0,
-              fontFamily: 'inherit',
-            }}
+            className={`text-[13px] font-medium transition-colors ${
+              refreshing ? 'text-gray-400 cursor-default' : 'text-vivat hover:text-vivat-dark'
+            }`}
           >
             {refreshing ? 'Оновлення...' : 'Оновити'}
           </button>
@@ -195,12 +110,12 @@ export default function BookResultCard({
         {result.prices.length > 0 && (() => {
           const geminiCount = result.prices.filter(p => p.parsedBy === 'gemini').length;
           const regexCount = result.prices.filter(p => p.parsedBy === 'regex').length;
-          const color = geminiCount > 0 ? '#1DB954' : '#AEAEB2';
+          const colorClass = geminiCount > 0 ? 'text-vivat' : 'text-gray-400';
           const label = geminiCount > 0
             ? `Gemini: ${geminiCount}${regexCount > 0 ? ` · Regex: ${regexCount}` : ''}`
             : `Regex: ${regexCount} (Gemini недоступний)`;
           return (
-            <p style={{ margin: '6px 0 0', fontSize: '11px', color }}>
+            <p className={`mt-2 text-[11px] ${colorClass} opacity-60`}>
               {label}
             </p>
           );

@@ -9,43 +9,26 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        apple: {
-          blue: '#0071E3',
-          'blue-dark': '#0077ED',
-          text: '#1D1D1F',
-          'text-secondary': '#6E6E73',
-          'text-tertiary': '#AEAEB2',
-          border: '#D2D2D7',
-          surface: '#F5F5F7',
-          green: '#1DB954',
-          red: '#FF3B30',
+        background: '#FDFBF7',
+        foreground: '#1D1D1F',
+        vivat: {
+          DEFAULT: '#13543A',
+          dark: '#0A422D',
+          light: '#EAF2EE',
+          accent: '#E3A857',
         },
+        danger: '#FF3B30'
       },
       fontFamily: {
-        sans: [
-          '-apple-system',
-          'BlinkMacSystemFont',
-          'Inter',
-          'Segoe UI',
-          'sans-serif',
-        ],
-      },
-      fontSize: {
-        'display': ['34px', { lineHeight: '1.12', letterSpacing: '-0.5px', fontWeight: '700' }],
-        'title': ['22px', { lineHeight: '1.27', letterSpacing: '-0.26px', fontWeight: '600' }],
-        'headline': ['17px', { lineHeight: '1.47', fontWeight: '600' }],
-        'body': ['17px', { lineHeight: '1.47', fontWeight: '400' }],
-        'callout': ['15px', { lineHeight: '1.53', fontWeight: '400' }],
-        'caption': ['13px', { lineHeight: '1.38', fontWeight: '400' }],
+        sans: ['-apple-system', 'BlinkMacSystemFont', 'Inter', 'sans-serif'],
       },
       borderRadius: {
-        'card': '12px',
-        'button': '8px',
-        'input': '10px',
+        '2xl': '1rem',
+        'xl': '0.75rem',
       },
-      maxWidth: {
-        'content': '680px',
-      },
+      boxShadow: {
+        'soft': '0 4px 24px -4px rgba(19, 84, 58, 0.06)',
+      }
     },
   },
   plugins: [],

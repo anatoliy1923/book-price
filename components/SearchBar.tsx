@@ -1,73 +1,42 @@
 'use client';
 
-import { useState, useRef, KeyboardEvent } from 'react';
+import { useState } from 'react';
 
 interface SearchBarProps {
-  onSearch: (query: string) => void;
-  loading?: boolean;
+  onSearch: (q: string) => void;
+  loading: boolean;
 }
 
 export default function SearchBar({ onSearch, loading }: SearchBarProps) {
-  const [value, setValue] = useState('');
-  const inputRef = useRef<HTMLInputElement>(null);
+  const [query, setQuery] = useState('');
 
-  const handleSubmit = () => {
-    const q = value.trim();
-    if (q.length >= 2) onSearch(q);
-  };
-
-  const handleKey = (e: KeyboardEvent<HTMLInputElement>) => {
-    if (e.key === 'Enter') handleSubmit();
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (query.trim().length > 1) {
+      onSearch(query.trim());
+    }
   };
 
   return (
-    <div style={{ display: 'flex', gap: '10px', width: '100%' }}>
+    <form onSubmit={handleSubmit} className="relative w-full mb-6 group">
       <input
-        ref={inputRef}
-        type="search"
-        value={value}
-        onChange={(e) => setValue(e.target.value)}
-        onKeyDown={handleKey}
+        type="text"
+        value={query}
+        onChange={(e) => setQuery(e.target.value)}
         placeholder="Назва книжки або автор..."
         disabled={loading}
-        autoComplete="off"
-        autoCorrect="off"
-        spellCheck={false}
-        style={{
-          flex: 1,
-          height: '48px',
-          padding: '0 16px',
-          fontSize: '17px',
-          color: '#1D1D1F',
-          background: '#ffffff',
-          border: '1px solid #D2D2D7',
-          borderRadius: '10px',
-          outline: 'none',
-          transition: 'border-color 0.15s',
-        }}
-        onFocus={(e) => (e.target.style.borderColor = '#0071E3')}
-        onBlur={(e) => (e.target.style.borderColor = '#D2D2D7')}
+        className="w-full h-14 pl-5 pr-14 text-[17px] bg-white border border-gray-200 rounded-2xl shadow-sm outline-none transition-all focus:border-vivat focus:ring-4 focus:ring-vivat/10 disabled:opacity-50 placeholder:text-gray-400"
       />
       <button
-        onClick={handleSubmit}
-        disabled={loading || value.trim().length < 2}
-        style={{
-          height: '48px',
-          padding: '0 20px',
-          fontSize: '15px',
-          fontWeight: 500,
-          color: '#ffffff',
-          background: loading ? '#AEAEB2' : '#0071E3',
-          border: 'none',
-          borderRadius: '10px',
-          cursor: loading ? 'default' : 'pointer',
-          whiteSpace: 'nowrap',
-          transition: 'background 0.15s',
-          fontFamily: 'inherit',
-        }}
+        type="submit"
+        disabled={loading || query.trim().length < 2}
+        className="absolute right-2 top-2 bottom-2 w-10 flex items-center justify-center rounded-xl bg-vivat text-white transition-transform active:scale-95 disabled:bg-gray-300 disabled:active:scale-100 disabled:cursor-not-allowed hover:bg-vivat-dark"
       >
-        {loading ? 'Пошук...' : 'Знайти'}
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="11" cy="11" r="8"></circle>
+          <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+        </svg>
       </button>
-    </div>
+    </form>
   );
 }

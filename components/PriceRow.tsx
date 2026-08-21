@@ -5,17 +5,12 @@ interface PriceRowProps {
   isBest: boolean;
 }
 
-function formatPrice(price: number): string {
-  return price.toLocaleString('uk-UA', {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }) + ' грн';
+function formatPrice(val: number) {
+  return `${val} ₴`;
 }
 
 export default function PriceRow({ item, isBest }: PriceRowProps) {
   const isPriceMissing = item.price === null;
-  // It is out of stock only if explicitly marked unavailable. 
-  // If price is missing, we don't assume it's out of stock, we just couldn't find the price.
   const isOutOfStock = !isPriceMissing && !item.available;
   const isUnavailable = isPriceMissing || isOutOfStock || !item.available;
 
@@ -24,94 +19,41 @@ export default function PriceRow({ item, isBest }: PriceRowProps) {
       href={item.url}
       target="_blank"
       rel="noopener noreferrer"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '12px',
-        padding: '12px 0',
-        textDecoration: 'none',
-        color: 'inherit',
-        borderLeft: isBest ? '2px solid #0071E3' : '2px solid transparent',
-        paddingLeft: isBest ? '12px' : '14px',
-        marginLeft: '-14px',
-        opacity: isUnavailable ? 0.45 : 1,
-      }}
+      className={`flex items-center gap-3 py-3 transition-opacity ${
+        isBest ? 'border-l-2 border-vivat-accent pl-3 -ml-[14px]' : 'border-l-2 border-transparent pl-[14px] -ml-[14px]'
+      } ${isUnavailable ? 'opacity-50 hover:opacity-70' : 'hover:bg-vivat-light/30 rounded-r-xl'}`}
     >
       {/* Store name */}
-      <span
-        style={{
-          flex: '0 0 100px',
-          fontSize: '15px',
-          color: isBest ? '#0071E3' : '#1D1D1F',
-          fontWeight: isBest ? 500 : 400,
-        }}
-      >
+      <span className={`flex-none w-[110px] text-[15px] truncate ${isBest ? 'text-vivat-dark font-medium' : 'text-foreground font-normal'}`}>
         {item.store}
       </span>
 
       {/* Prices */}
-      <span style={{ flex: 1, display: 'flex', alignItems: 'baseline', gap: '8px' }}>
+      <span className="flex-1 flex items-baseline gap-2 flex-wrap">
         {isPriceMissing ? (
-          <span style={{ fontSize: '15px', color: '#AEAEB2' }}>
-            Ціна не знайдена
-          </span>
+          <span className="text-[15px] text-gray-400">Ціна не знайдена</span>
         ) : isOutOfStock || !item.available ? (
-          <span style={{ fontSize: '15px', color: '#AEAEB2' }}>
-            Немає в наявності
-          </span>
+          <span className="text-[15px] text-gray-400">Немає в наявності</span>
         ) : (
           <>
-            <span
-              style={{
-                fontSize: '17px',
-                fontWeight: isBest ? 600 : 400,
-                color: '#1D1D1F',
-              }}
-            >
+            <span className={`text-[17px] ${isBest ? 'font-semibold text-foreground' : 'font-normal text-foreground'}`}>
               {formatPrice(item.price!)}
             </span>
+            
             {item.oldPrice && (
-              <span
-                style={{
-                  fontSize: '13px',
-                  color: '#AEAEB2',
-                  textDecoration: 'line-through',
-                }}
-              >
+              <span className="text-[13px] text-gray-400 line-through">
                 {formatPrice(item.oldPrice)}
               </span>
             )}
+            
             {item.discount && (
-              <span
-                style={{
-                  fontSize: '13px',
-                  color: '#1DB954',
-                  fontWeight: 500,
-                }}
-              >
+              <span className="text-[13px] font-medium text-vivat-accent bg-vivat-accent/10 px-1.5 py-0.5 rounded">
                 -{item.discount}%
               </span>
             )}
           </>
         )}
       </span>
-
-      {/* Arrow */}
-      <svg
-        width="7"
-        height="12"
-        viewBox="0 0 7 12"
-        fill="none"
-        style={{ flexShrink: 0, opacity: 0.35 }}
-      >
-        <path
-          d="M1 1L6 6L1 11"
-          stroke="#1D1D1F"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
     </a>
   );
 }
