@@ -17,6 +17,8 @@ create table if not exists public.audit_logs (
 create table if not exists public.bug_reports (
   id uuid primary key default gen_random_uuid(), user_id uuid references auth.users(id) on delete set null, message text not null check (char_length(message) between 10 and 4000), page text, status text not null default 'new', created_at timestamptz not null default now()
 );
+-- PostgREST upsert requires a direct unique index for `onConflict: 'query'`.
+create unique index if not exists price_cache_query_unique_idx on public.price_cache(query);
 alter table public.watchlist add column if not exists user_id uuid references auth.users(id) on delete cascade;
 alter table public.push_subscriptions add column if not exists user_id uuid references auth.users(id) on delete cascade;
 create unique index if not exists push_subscriptions_user_endpoint_idx on public.push_subscriptions(user_id, (subscription->>'endpoint'));
