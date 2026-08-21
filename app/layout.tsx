@@ -30,9 +30,14 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <Link href="/" className="text-[19px] font-bold tracking-tight text-vivat-dark hover:opacity-80 transition-opacity">
               Книжки.
             </Link>
-            <Link href="/watchlist" className="text-[15px] font-medium text-vivat hover:text-vivat-dark transition-colors">
-              Відстеження
-            </Link>
+            <div className="flex items-center gap-5">
+              <Link href="/promotions" className="text-[15px] font-medium text-vivat hover:text-vivat-dark transition-colors">
+                Акції
+              </Link>
+              <Link href="/watchlist" className="text-[15px] font-medium text-vivat hover:text-vivat-dark transition-colors">
+                Відстеження
+              </Link>
+            </div>
           </div>
         </header>
 
