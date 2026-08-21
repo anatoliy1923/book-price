@@ -1,0 +1,8 @@
+title = "Book Price secret scanning"
+[extend]
+useDefault = true
+
+[allowlist]
+description = "Only documented placeholders"
+paths = ['''\.env\.example$''']
+regexes = ['''xxxxxxxx+''', '''your-[a-z-]+-secret''']

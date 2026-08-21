@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import type { Promo } from '@/lib/promotions';
 import Skeleton from '@/components/Skeleton';
+import { authHeaders } from '@/lib/client-auth';
 
 export default function PromotionsPage() {
   const [promos, setPromos] = useState<Promo[]>([]);
@@ -13,7 +14,7 @@ export default function PromotionsPage() {
   const fetchPromos = async (force: boolean = false) => {
     try {
       if (force) setRefreshing(true);
-      const res = await fetch(`/api/promotions${force ? '?force=true' : ''}`);
+      const res = await fetch(`/api/promotions${force ? '?force=true' : ''}`, { headers: await authHeaders() });
       const data = await res.json();
       if (data.promos) {
         setPromos(data.promos);

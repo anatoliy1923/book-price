@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import type { WatchlistItem } from '@/lib/supabase';
+import { authHeaders } from '@/lib/client-auth';
 
 function formatPrice(price: number | null): string {
   if (!price) return '—';
@@ -24,7 +25,7 @@ export default function WatchlistPage() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch('/api/watchlist')
+    authHeaders().then((headers) => fetch('/api/watchlist', { headers }))
       .then((r) => r.json())
       .then((data) => {
         if (Array.isArray(data)) setItems(data);
@@ -35,7 +36,7 @@ export default function WatchlistPage() {
   }, []);
 
   const handleRemove = async (id: string) => {
-    await fetch(`/api/watchlist/${id}`, { method: 'DELETE' });
+    await fetch(`/api/watchlist/${id}`, { method: 'DELETE', headers: await authHeaders() });
     setItems((prev) => prev.filter((item) => item.id !== id));
   };
 

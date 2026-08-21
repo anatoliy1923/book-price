@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import type { BookSearchResult } from './tavily';
+import { supabaseAdmin } from './supabase-server';
 
 export type WatchlistItem = {
   id: string;
@@ -29,7 +30,7 @@ export const CACHE_TTL_MS = 4 * 60 * 60 * 1000;
 export async function getCached(
   query: string
 ): Promise<BookSearchResult | null> {
-  const { data, error } = await supabase
+  const { data, error } = await supabaseAdmin
     .from('price_cache')
     .select('*')
     .eq('query', query.toLowerCase().trim())
@@ -47,7 +48,7 @@ export async function setCache(
   query: string,
   results: BookSearchResult
 ): Promise<void> {
-  await supabase.from('price_cache').upsert(
+  await supabaseAdmin.from('price_cache').upsert(
     {
       query: query.toLowerCase().trim(),
       results,

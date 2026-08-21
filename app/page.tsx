@@ -5,6 +5,7 @@ import SearchBar from '@/components/SearchBar';
 import BookResultCard from '@/components/BookResultCard';
 import Skeleton from '@/components/Skeleton';
 import type { BookSearchResult } from '@/lib/tavily';
+import { authHeaders } from '@/lib/client-auth';
 
 type WatchedMap = Record<string, boolean>;
 
@@ -58,8 +59,7 @@ export default function Home() {
         
         await fetch('/api/subscribe', {
           method: 'POST',
-          body: JSON.stringify(sub),
-          headers: { 'Content-Type': 'application/json' }
+          body: JSON.stringify(sub), headers: { 'Content-Type': 'application/json', ...(await authHeaders()) }
         });
         
         setPushEnabled(true);
@@ -95,8 +95,7 @@ export default function Home() {
     try {
       const res = await fetch('/api/search', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query, store, forceRefresh }),
+        body: JSON.stringify({ query, store, forceRefresh }), headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
       });
 
       const data = await res.json();
@@ -140,7 +139,7 @@ export default function Home() {
       if (isWatched) {
         await fetch('/api/watchlist', {
           method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
           body: JSON.stringify({ query: result.query }),
         });
       } else {
@@ -149,12 +148,12 @@ export default function Home() {
 
         await fetch('/api/watchlist', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: { 'Content-Type': 'application/json', ...(await authHeaders()) },
           body: JSON.stringify({
             title: result.title,
             author: result.author,
             query: result.query,
-            lastPrice: bestPrice,
+            last_price: bestPrice,
           }),
         });
       }

@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import Link from 'next/link';
+import AuthGate from '@/components/AuthGate';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -37,13 +38,12 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/watchlist" className="text-[15px] font-medium text-vivat hover:text-vivat-dark transition-colors">
                 Відстеження
               </Link>
+              <Link href="/admin" className="text-[15px] font-medium text-vivat hover:text-vivat-dark transition-colors">Кабінет</Link>
             </div>
           </div>
         </header>
 
-        <main className="max-w-[680px] mx-auto px-5 py-8 pb-24 min-h-[calc(100vh-56px)]">
-          {children}
-        </main>
+        <AuthGate><main className="max-w-[680px] mx-auto px-5 py-8 pb-24 min-h-[calc(100vh-56px)]">{children}</main></AuthGate>
       </body>
     </html>
   );

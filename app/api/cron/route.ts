@@ -1,15 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-server';
 import { searchBookPrices } from '@/lib/tavily';
 import webpush from 'web-push';
 
 export const maxDuration = 300;
-
-webpush.setVapidDetails(
-  'mailto:your-email@example.com',
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || '',
-  process.env.VAPID_PRIVATE_KEY || ''
-);
 
 export async function GET(req: NextRequest) {
   const authHeader = req.headers.get('authorization');
@@ -18,14 +12,14 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    if (!process.env.VAPID_PRIVATE_KEY || !process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY || !process.env.VAPID_CONTACT_EMAIL) return NextResponse.json({ error: 'Push is not configured' }, { status: 503 });
+    webpush.setVapidDetails(`mailto:${process.env.VAPID_CONTACT_EMAIL}`, process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY, process.env.VAPID_PRIVATE_KEY);
     // 1. Fetch items that need checking today
     // For simplicity, we fetch all. In a real app we'd filter by 'daily', 'weekly' etc. based on Date.
-    const { data: items } = await supabase.from('watchlist').select('*');
+    const { data: items } = await supabaseAdmin.from('watchlist').select('*');
     if (!items || items.length === 0) return NextResponse.json({ ok: true, message: 'Empty watchlist' });
 
     // 2. Fetch all push subscriptions
-    const { data: subs } = await supabase.from('push_subscriptions').select('subscription');
-    const subscriptions = subs ? subs.map(s => s.subscription) : [];
 
     let notificationsSent = 0;
 
@@ -46,7 +40,8 @@ export async function GET(req: NextRequest) {
               body: `"${item.title}" тепер коштує ${bestPrice} грн (було ${item.last_price} грн)`
             });
 
-            for (const sub of subscriptions) {
+            const { data: subscriptions } = await supabaseAdmin.from('push_subscriptions').select('subscription').eq('user_id', item.user_id);
+            for (const { subscription: sub } of subscriptions || []) {
               try {
                 await webpush.sendNotification(sub, payload);
                 notificationsSent++;
@@ -57,7 +52,7 @@ export async function GET(req: NextRequest) {
           }
 
           // Update DB
-          await supabase
+          await supabaseAdmin
             .from('watchlist')
             .update({ last_price: bestPrice, last_checked: new Date().toISOString() })
             .eq('id', item.id);

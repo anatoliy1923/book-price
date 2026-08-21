@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { supabase } from '@/lib/supabase';
+import { supabaseAdmin } from '@/lib/supabase-server';
+import { requireUser } from '@/lib/auth';
+import { guard } from '@/lib/api';
 
 export async function POST(req: NextRequest) {
   try {
+    const blocked = await guard(req, 'subscribe', 5); if (blocked) return blocked;
+    const user = await requireUser(req); if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const subscription = await req.json();
 
-    if (!subscription || !subscription.endpoint) {
+    if (!subscription || typeof subscription.endpoint !== 'string' || subscription.endpoint.length > 2048) {
       return NextResponse.json({ error: 'Invalid subscription' }, { status: 400 });
     }
 
-    // Upsert the subscription (in a real app we'd use upsert, but here we just insert and ignore duplicates if we had a unique constraint. Since it's personal, we just insert).
-    // Let's delete existing exact matches first to prevent spam
-    await supabase.from('push_subscriptions').delete().eq('subscription->>endpoint', subscription.endpoint);
-    
-    const { error } = await supabase.from('push_subscriptions').insert([{ subscription }]);
+    await supabaseAdmin.from('push_subscriptions').delete().eq('user_id', user.id).eq('subscription->>endpoint', subscription.endpoint);
+    const { error } = await supabaseAdmin.from('push_subscriptions').insert([{ subscription, user_id: user.id }]);
 
     if (error) throw error;
 

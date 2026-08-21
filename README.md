@@ -19,16 +19,24 @@ PWA для порівняння цін на книжки в українськи
 ### 2. Vercel
 
 1. Зайдіть на [vercel.com](https://vercel.com) → Add New Project → Import `anatoliy1923/book-price`
-2. У розділі **Environment Variables** додайте:
+2. Run `supabase/security_upgrade.sql` after the existing schema files. In Supabase Auth, enable email confirmations and configure the production Site URL / redirect URL.
+
+3. У розділі **Environment Variables** додайте:
 
 | Змінна | Значення |
 |--------|----------|
-| `TAVILY_API_KEY` | Ваш Tavily API ключ |
+| `TAVILY_API_KEYS` | Один або кілька контрольованих власником ключів через кому |
+| `GEMINI_API_KEYS` | Серверні Gemini ключі через кому |
+| `GEMINI_MODELS` | `gemini-2.5-flash,gemini-3.5-flash-lite` |
 | `NEXT_PUBLIC_SUPABASE_URL` | URL проекту з Supabase Dashboard → Settings → API |
 | `NEXT_PUBLIC_SUPABASE_ANON_KEY` | anon key з Supabase Dashboard → Settings → API |
 | `CRON_SECRET` | Будь-який рядок (наприклад, згенерований паролем) |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only ключ Supabase; ніколи не додавайте `NEXT_PUBLIC_` |
+| `VAPID_CONTACT_EMAIL` | Контактна email-адреса для Web Push |
 
-3. Deploy
+4. Deploy. The first admin must be set manually in Supabase SQL Editor: `update public.profiles set role = 'admin' where email = 'your-email@example.com';`
+
+The product is free for users but has enforced shared-capacity limits: Free = 2 fresh searches/day and 20/month; Plus = 5/day and 60/month. Cached searches are free. Provider keys are never rotated to bypass a provider quota; configure only keys/projects you are permitted to operate.
 
 ### 3. GitHub Secrets (для щоденного cron)
 

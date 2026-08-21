@@ -1,151 +1,48 @@
 import { GoogleGenAI } from '@google/genai';
-import { BookPrice } from './tavily';
 
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-
-export interface GeminiBookData {
-  isCorrectBook: boolean;
-  price: number | null;
-  oldPrice: number | null;
-  discount: number | null;
-  available: boolean;
-  title?: string;
-  author?: string;
-}
-
-const SYSTEM_PROMPT = `You are a strict data extraction assistant.
-Your goal is to parse book product pages and extract pricing.
-
-CRITICAL RULES:
-1. "isCorrectBook" = true ONLY if the page is a product page for the searched book.
-2. UKRAINIAN STORES USE REACT/VUE. The visible text might say "out of stock" or be missing prices because JS hasn't executed.
-3. YOU MUST PRIORITIZE <script type="application/ld+json">, Schema.org/Product, Schema.org/Book, and <meta property="product:price:amount"> tags!
-4. If JSON-LD says "InStock", set available=true and extract the price from there, EVEN IF the raw text says "Немає в наявності".
-5. Prices must be in Ukrainian hryvnias (грн / ₴). 
-6. "price" = current selling price. "oldPrice" = before discount. "discount" = integer percentage (1-70).
-7. "available" = true IF JSON-LD says InStock OR there is a "Купити", "В кошик" button.
-8. Return ONLY valid JSON, no markdown, no explanation.
-
-JSON schema:
-{
-  "isCorrectBook": boolean,
-  "title": "string or null",
-  "author": "string or null",
-  "price": number or null,
-  "oldPrice": number or null,
-  "discount": number or null,
-  "available": boolean
-}`;
+export interface GeminiBookData { isCorrectBook: boolean; price: number | null; oldPrice: number | null; discount: number | null; available: boolean; title?: string; author?: string; }
+const models = (process.env.GEMINI_MODELS || 'gemini-2.5-flash,gemini-3.5-flash-lite').split(',').map((v) => v.trim()).filter(Boolean);
+const keys = (process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '').split(',').map((v) => v.trim()).filter(Boolean);
 
 function sanitize(data: Partial<GeminiBookData>): GeminiBookData | null {
-  if (data.isCorrectBook === undefined) return null;
-
-  let { price, oldPrice, discount, available } = data;
-
-  if (price !== null && price !== undefined) {
-    if (price < 30 || price > 8000) price = null;
-  }
-  if (oldPrice !== null && oldPrice !== undefined && price !== null && price !== undefined) {
-    if (oldPrice <= price || oldPrice > price * 3) oldPrice = null;
-  }
-  if (discount !== null && discount !== undefined) {
-    if (discount < 1 || discount > 70) discount = null;
-  }
-  if (available === undefined) available = false;
-
-  return {
-    isCorrectBook: data.isCorrectBook,
-    title: data.title,
-    author: data.author,
-    price: price ?? null,
-    oldPrice: oldPrice ?? null,
-    discount: discount ?? null,
-    available,
-  };
+  if (typeof data.isCorrectBook !== 'boolean') return null;
+  const price = typeof data.price === 'number' && data.price >= 30 && data.price <= 8000 ? data.price : null;
+  const oldPrice = typeof data.oldPrice === 'number' && price !== null && data.oldPrice > price && data.oldPrice <= price * 3 ? data.oldPrice : null;
+  const discount = typeof data.discount === 'number' && data.discount >= 1 && data.discount <= 70 ? Math.round(data.discount) : null;
+  return { isCorrectBook: data.isCorrectBook, title: data.title, author: data.author, price, oldPrice, discount, available: data.available === true };
 }
 
-export async function extractBookData(
-  pageContent: string,
-  searchQuery: string,
-  searchSnippet: string = ''
-): Promise<GeminiBookData | null> {
-  if (!GEMINI_API_KEY) return null;
+async function json(prompt: string, instruction?: string): Promise<unknown> {
+  if (!keys.length) throw new Error('Gemini is not configured');
+  let lastError: unknown;
+  // Models are fallbacks for transient/model availability failures, never quota bypasses.
+  for (const model of models) {
+    try {
+      const client = new GoogleGenAI({ apiKey: keys[0] });
+      const response = await client.models.generateContent({ model, contents: [{ role: 'user', parts: [{ text: prompt }] }], config: { systemInstruction: instruction, temperature: 0.1, responseMimeType: 'application/json' } });
+      return JSON.parse(response.text?.trim() || 'null');
+    } catch (error) { lastError = error; }
+  }
+  throw lastError;
+}
 
-  const client = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-  const truncated = pageContent.slice(0, 5000);
-  const userMessage = `Search query: "${searchQuery}"
-
-Search Engine Snippet (Highly reliable for price):
-${searchSnippet}
-
-Webpage content:
-${truncated}
-
-Return JSON only.`;
-
+export async function extractBookBatch(pages: Array<{ domain: string; content: string; snippet: string }>, searchQuery: string): Promise<Array<GeminiBookData | null>> {
+  if (!pages.length || !keys.length) return pages.map(() => null);
+  const compact = pages.map((page, id) => ({ id, domain: page.domain, snippet: page.snippet.slice(0, 700), content: page.content.slice(0, 3500) }));
   try {
-    const response = await client.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: [{ role: 'user', parts: [{ text: userMessage }] }],
-      config: {
-        systemInstruction: SYSTEM_PROMPT,
-        temperature: 0.1,
-        responseMimeType: 'application/json',
-      },
-    });
-
-    const text = response.text?.trim() || '';
-    const parsed = JSON.parse(text);
-    return sanitize(parsed);
-  } catch (err) {
-    return null;
-  }
+    const parsed = await json(`Search query: ${JSON.stringify(searchQuery)}\nPages: ${JSON.stringify(compact)}\nReturn an array with exactly ${pages.length} objects in order. Each object has isCorrectBook, title, author, price, oldPrice, discount, available.`, 'Extract book offers. Trust JSON-LD Product/Book and product meta tags before visible text. A page is correct only when it represents the requested book. Prices are UAH. Return JSON only.');
+    return Array.isArray(parsed) ? pages.map((_, i) => sanitize(parsed[i] || {})) : pages.map(() => null);
+  } catch { return pages.map(() => null); }
 }
 
-export async function normalizeSearchQuery(rawQuery: string, specificStore?: string): Promise<{ query: string, storeDomain: string | null, storeName: string | null }> {
-  if (!GEMINI_API_KEY) {
-    return { query: rawQuery, storeDomain: null, storeName: null };
-  }
-  
-  const client = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
-
-  const prompt = `Ти помічник для пошуку книжок.
-Запит на книгу: "${rawQuery}"
-Специфічний магазин (необов'язково): "${specificStore || ''}"
-
-Твоя задача:
-1. Нормалізувати запит на книгу у формат "Назва Автор" (виправити помилки).
-2. Якщо вказано специфічний магазин, визначити його офіційний домен (наприклад "мегого букс" -> "megogo.net", "сенс" -> "sens.in.ua", "віват" -> "vivat.ua") та правильну капіталізовану назву. Якщо магазин не вказано, поверни null.
-
-Поверни ЛИШЕ валідний JSON у такому форматі:
-{
-  "query": "Нормалізований запит",
-  "storeDomain": "domain.com",
-  "storeName": "Назва магазину"
-}
-Якщо магазин не вказано, або ти його не знаєш, поверни null для домену та назви.
-`;
-
+export async function normalizeSearchQuery(rawQuery: string, specificStore?: string) {
+  if (!keys.length) return { query: rawQuery, storeDomain: null, storeName: null };
   try {
-    const response = await client.models.generateContent({
-      model: 'gemini-3.5-flash',
-      contents: [{ role: 'user', parts: [{ text: prompt }] }],
-      config: { temperature: 0.1, responseMimeType: 'application/json' },
-    });
-
-    const text = response.text?.trim() || '';
-    const parsed = JSON.parse(text);
-    
-    if (parsed.query && typeof parsed.query === 'string') {
-      return {
-        query: parsed.query.replace(/["«»]/g, ''),
-        storeDomain: parsed.storeDomain || null,
-        storeName: parsed.storeName || null
-      };
+    const parsed = await json(`Normalize this Ukrainian book search into title and author. Store request: ${JSON.stringify(specificStore || '')}. Book request: ${JSON.stringify(rawQuery)}. Return {"query":"Title Author","storeDomain":string|null,"storeName":string|null}. Use a store domain only when certain it is official.`);
+    if (parsed && typeof parsed === 'object' && typeof (parsed as { query?: unknown }).query === 'string') {
+      const value = parsed as { query: string; storeDomain?: unknown; storeName?: unknown };
+      return { query: value.query.slice(0, 180).replace(/["«»]/g, ''), storeDomain: typeof value.storeDomain === 'string' ? value.storeDomain : null, storeName: typeof value.storeName === 'string' ? value.storeName : null };
     }
-  } catch (err) {
-    console.warn('[gemini] Query normalization failed:', err instanceof Error ? err.message : String(err));
-  }
-  
+  } catch { /* safe fallback */ }
   return { query: rawQuery, storeDomain: null, storeName: null };
 }
