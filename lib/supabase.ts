@@ -1,4 +1,3 @@
-import { createClient } from '@supabase/supabase-js';
 import type { BookSearchResult } from './tavily';
 import { supabaseAdmin } from './supabase-server';
 
@@ -18,11 +17,6 @@ export type PriceCacheRow = {
   results: BookSearchResult;
   updated_at: string;
 };
-
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!;
-const supabaseKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!;
-
-export const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Cache TTL in milliseconds (4 hours)
 export const CACHE_TTL_MS = 4 * 60 * 60 * 1000;

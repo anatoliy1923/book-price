@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchBookPrices } from '@/lib/tavily';
-import { getCached, setCache, supabase } from '@/lib/supabase';
+import { getCached, setCache } from '@/lib/supabase';
 import { normalizeSearchQuery } from '@/lib/gemini';
 import { requireUser, getRole } from '@/lib/auth';
 import { consumeSearchQuota } from '@/lib/limits';
