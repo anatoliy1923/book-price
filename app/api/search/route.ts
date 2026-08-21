@@ -1,19 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchBookPrices } from '@/lib/tavily';
 import { getCached, setCache, supabase } from '@/lib/supabase';
+import { normalizeSearchQuery } from '@/lib/gemini';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const query: string = (body.query || '').trim();
+    const rawQuery: string = (body.query || '').trim();
     const forceRefresh: boolean = body.forceRefresh === true;
 
-    if (!query || query.length < 2) {
+    if (!rawQuery || rawQuery.length < 2) {
       return NextResponse.json(
         { error: 'Введіть назву книжки' },
         { status: 400 }
       );
     }
+
+    // Step 1: AI Normalization of the query
+    const query = await normalizeSearchQuery(rawQuery);
 
     // If forceRefresh: delete stale cache entry first
     if (forceRefresh) {

@@ -14,11 +14,32 @@ export default function Home() {
   const [result, setResult] = useState<(BookSearchResult & { fromCache?: boolean }) | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [watched, setWatched] = useState<WatchedMap>({});
+  
+  // Progress bar states
+  const [progress, setProgress] = useState(0);
+  const [statusText, setStatusText] = useState('');
 
   const doSearch = useCallback(async (query: string, forceRefresh = false) => {
     setError(null);
     if (forceRefresh) setRefreshing(true);
     else setLoading(true);
+
+    setProgress(15);
+    setStatusText('Нормалізація запиту через ШІ...');
+
+    // Cycle texts to keep user engaged
+    const texts = [
+      'Шукаємо в 11 книгарнях...',
+      'Завантажуємо сторінки...',
+      'ШІ перевіряє наявність та ціни...',
+      'Формуємо результати...'
+    ];
+    let step = 0;
+    const interval = setInterval(() => {
+      setProgress(p => (p < 90 ? p + Math.random() * 10 : p));
+      step++;
+      if (step < texts.length) setStatusText(texts[step]);
+    }, 2500);
 
     try {
       const res = await fetch('/api/search', {
@@ -38,8 +59,14 @@ export default function Home() {
     } catch {
       setError('Перевірте підʼєднання до інтернету');
     } finally {
-      setLoading(false);
-      setRefreshing(false);
+      clearInterval(interval);
+      setProgress(100);
+      setTimeout(() => {
+        setProgress(0);
+        setLoading(false);
+        setRefreshing(false);
+        setStatusText('');
+      }, 400);
     }
   }, []);
 
@@ -90,6 +117,22 @@ export default function Home() {
 
   return (
     <div>
+      {/* Top Progress Bar */}
+      {progress > 0 && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            height: '3px',
+            background: '#0071E3',
+            width: `${progress}%`,
+            transition: 'width 0.3s ease-out',
+            zIndex: 9999,
+          }}
+        />
+      )}
+
       {/* Page title */}
       <h1
         style={{
@@ -118,7 +161,16 @@ export default function Home() {
       </p>
 
       {/* States */}
-      {loading && <Skeleton count={2} />}
+      {loading && (
+        <div>
+          {statusText && (
+            <p style={{ margin: '0 0 16px', fontSize: '15px', color: '#0071E3', fontWeight: 500 }}>
+              {statusText}
+            </p>
+          )}
+          <Skeleton count={2} />
+        </div>
+      )}
 
       {error && !loading && (
         <p

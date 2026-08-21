@@ -120,3 +120,35 @@ Return JSON only.`;
   console.error('[gemini] All models failed for query:', searchQuery);
   return null;
 }
+
+// Analyzes and normalizes the user's search query for better search accuracy
+export async function normalizeSearchQuery(rawQuery: string): Promise<string> {
+  if (!GEMINI_API_KEY) return rawQuery;
+  const client = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
+
+  const prompt = `Ти помічник для пошуку книжок.
+Твоя задача — виправити помилки та нормалізувати запит користувача у чистий формат "Назва книжки Автор" українською мовою.
+Якщо це лише автор — поверни його повне ім'я (наприклад "камю" -> "Альбер Камю").
+Якщо це серія або відома книжка, напиши правильну назву.
+Запит: "${rawQuery}"
+Поверни ЛИШЕ нормалізований рядок, без лапок, без крапок в кінці і без жодних пояснень.`;
+
+  try {
+    const response = await client.models.generateContent({
+      model: 'gemini-3.5-flash',
+      contents: [{ role: 'user', parts: [{ text: prompt }] }],
+      config: { temperature: 0.1 },
+    });
+
+    const text = response.text?.trim().replace(/["«»]/g, '');
+    
+    // Sanity check: if it's too long or looks like JSON, ignore it
+    if (text && text.length > 2 && text.length < 100 && !text.includes('{')) {
+      return text;
+    }
+  } catch (err) {
+    console.warn('[gemini] Query normalization failed:', err instanceof Error ? err.message : String(err));
+  }
+  
+  return rawQuery; // fallback to original
+}
