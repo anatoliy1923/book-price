@@ -45,7 +45,7 @@ function sanitize(data: Partial<GeminiBookData>): GeminiBookData | null {
   if (price !== null && price !== undefined) {
     if (price < 30 || price > 8000) price = null;
   }
-  if (oldPrice !== null && oldPrice !== undefined && price !== null) {
+  if (oldPrice !== null && oldPrice !== undefined && price !== null && price !== undefined) {
     if (oldPrice <= price || oldPrice > price * 3) oldPrice = null;
   }
   if (discount !== null && discount !== undefined) {
