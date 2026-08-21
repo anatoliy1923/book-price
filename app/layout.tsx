@@ -39,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
                 Відстеження
               </Link>
               <Link href="/admin" className="text-[15px] font-medium text-vivat hover:text-vivat-dark transition-colors">Кабінет</Link>
+              <Link href="/feedback" className="text-[15px] font-medium text-vivat hover:text-vivat-dark transition-colors">Допомога</Link>
             </div>
           </div>
         </header>
