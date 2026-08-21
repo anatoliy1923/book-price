@@ -45,6 +45,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         </header>
 
         <AuthGate><main className="max-w-[680px] mx-auto px-5 py-8 pb-24 min-h-[calc(100vh-56px)]">{children}</main></AuthGate>
+        <footer className="max-w-[680px] mx-auto px-5 pb-7 text-center text-[11px] font-medium tracking-wide text-vivat/55">
+          Book Price 2.0
+        </footer>
       </body>
     </html>
   );
