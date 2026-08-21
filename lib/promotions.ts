@@ -1,7 +1,8 @@
 import { GoogleGenAI } from '@google/genai';
 
-const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY!;
+const TAVILY_API_KEY = (process.env.TAVILY_API_KEYS || process.env.TAVILY_API_KEY || '').split(',')[0]?.trim();
+const GEMINI_API_KEY = (process.env.GEMINI_API_KEYS || process.env.GEMINI_API_KEY || '').split(',')[0]?.trim();
+const GEMINI_MODEL = (process.env.GEMINI_MODELS || 'gemini-2.5-flash').split(',')[0].trim();
 
 export interface Promo {
   store: string;
@@ -90,7 +91,7 @@ ${combinedInfo}
 Поверни ТІЛЬКИ валідний JSON масив. Без розмітки маркдаун.`;
 
     const aiRes = await client.models.generateContent({
-      model: 'gemini-3.5-flash',
+      model: GEMINI_MODEL,
       contents: [{ role: 'user', parts: [{ text: prompt }] }],
       config: { temperature: 0.1, responseMimeType: 'application/json' }
     });
