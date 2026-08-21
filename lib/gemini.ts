@@ -63,7 +63,8 @@ function sanitize(data: GeminiBookData): GeminiBookData {
 
 export async function extractBookData(
   pageContent: string,
-  searchQuery: string
+  searchQuery: string,
+  searchSnippet: string = ''
 ): Promise<GeminiBookData | null> {
   if (!GEMINI_API_KEY) {
     console.warn('[gemini] No API key set');
@@ -76,6 +77,9 @@ export async function extractBookData(
   const truncated = pageContent.slice(0, 5000);
 
   const userMessage = `Search query: "${searchQuery}"
+
+Search Engine Snippet (Highly reliable for price):
+${searchSnippet}
 
 Webpage content:
 ${truncated}

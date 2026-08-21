@@ -47,9 +47,9 @@ async function searchOneStore(
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         api_key: TAVILY_API_KEY,
-        query: `${query} книга купити`,
+        query: `${query} купити ціна`,
         search_depth: 'basic',
-        max_results: 3,
+        max_results: 4,
         include_domains: [store.domain],
       }),
     });
@@ -113,6 +113,7 @@ export async function searchBookPrices(query: string): Promise<BookSearchResult>
   }
 
   // Step 3: Extract full page content for each found URL in parallel
+  // Keep the snippet for Gemini to use as fallback!
   const pageContents = await Promise.allSettled(
     found.map(async (item) => {
       const full = await extractPage(item.url);
@@ -128,10 +129,10 @@ export async function searchBookPrices(query: string): Promise<BookSearchResult>
   const geminiResults = await Promise.allSettled(
     pageContents.map(async (r) => {
       if (r.status !== 'fulfilled') return null;
-      const { store, url, content } = r.value;
+      const { store, url, content, snippet } = r.value;
 
-      // Try Gemini first; fall back to regex if Gemini unavailable
-      const geminiData = await extractBookData(content, query);
+      // Try Gemini first; pass BOTH html content and the search snippet!
+      const geminiData = await extractBookData(content, query, snippet);
 
       if (geminiData) {
         // Skip pages that are not about the searched book
