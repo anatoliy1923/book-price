@@ -156,35 +156,55 @@ export default function BookResultCard({
         </div>
       )}
 
-      {/* Footer: cache timestamp + refresh */}
+      {/* Footer: cache timestamp + debug info + refresh */}
       <div
         style={{
-          display: 'flex',
-          justifyContent: 'space-between',
-          alignItems: 'center',
           marginTop: '16px',
           paddingTop: '12px',
           borderTop: '1px solid #D2D2D7',
         }}
       >
-        <span style={{ fontSize: '13px', color: '#AEAEB2' }}>
-          Оновлено {timeAgo(result.cachedAt)}
-        </span>
-        <button
-          onClick={onRefresh}
-          disabled={refreshing}
+        <div
           style={{
-            background: 'none',
-            border: 'none',
-            cursor: refreshing ? 'default' : 'pointer',
-            fontSize: '13px',
-            color: refreshing ? '#AEAEB2' : '#0071E3',
-            padding: 0,
-            fontFamily: 'inherit',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
           }}
         >
-          {refreshing ? 'Оновлення...' : 'Оновити'}
-        </button>
+          <span style={{ fontSize: '13px', color: '#AEAEB2' }}>
+            Оновлено {timeAgo(result.cachedAt)}
+          </span>
+          <button
+            onClick={onRefresh}
+            disabled={refreshing}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: refreshing ? 'default' : 'pointer',
+              fontSize: '13px',
+              color: refreshing ? '#AEAEB2' : '#0071E3',
+              padding: 0,
+              fontFamily: 'inherit',
+            }}
+          >
+            {refreshing ? 'Оновлення...' : 'Оновити'}
+          </button>
+        </div>
+
+        {/* Debug: parser stats */}
+        {result.prices.length > 0 && (() => {
+          const geminiCount = result.prices.filter(p => p.parsedBy === 'gemini').length;
+          const regexCount = result.prices.filter(p => p.parsedBy === 'regex').length;
+          const color = geminiCount > 0 ? '#1DB954' : '#AEAEB2';
+          const label = geminiCount > 0
+            ? `Gemini: ${geminiCount}${regexCount > 0 ? ` · Regex: ${regexCount}` : ''}`
+            : `Regex: ${regexCount} (Gemini недоступний)`;
+          return (
+            <p style={{ margin: '6px 0 0', fontSize: '11px', color }}>
+              {label}
+            </p>
+          );
+        })()}
       </div>
     </div>
   );

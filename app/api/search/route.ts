@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { searchBookPrices } from '@/lib/tavily';
-import { getCached, setCache } from '@/lib/supabase';
+import { getCached, setCache, supabase } from '@/lib/supabase';
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const query: string = (body.query || '').trim();
+    const forceRefresh: boolean = body.forceRefresh === true;
 
     if (!query || query.length < 2) {
       return NextResponse.json(
@@ -14,7 +15,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Check cache first
+    // If forceRefresh: delete stale cache entry first
+    if (forceRefresh) {
+      await supabase
+        .from('price_cache')
+        .delete()
+        .eq('query', query.toLowerCase().trim());
+    }
+
+    // Check cache (skipped if forceRefresh deleted it)
     const cached = await getCached(query);
     if (cached) {
       return NextResponse.json({ ...cached, fromCache: true });

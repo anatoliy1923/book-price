@@ -25,6 +25,7 @@ export interface BookPrice {
   discount: number | null;
   url: string;
   available: boolean;
+  parsedBy: 'gemini' | 'regex' | 'none';
 }
 
 export interface BookSearchResult {
@@ -145,18 +146,19 @@ export async function searchBookPrices(query: string): Promise<BookSearchResult>
           available: geminiData.available,
           title: geminiData.title,
           author: geminiData.author,
+          parsedBy: 'gemini' as const,
         };
       }
 
       // Regex fallback
       const parsed = regexParsePrice(content);
-      return { store, url, ...parsed, title: '', author: '' };
+      return { store, url, ...parsed, title: '', author: '', parsedBy: 'regex' as const };
     })
   );
 
   for (const r of geminiResults) {
     if (r.status !== 'fulfilled' || !r.value) continue;
-    const { store, url, price, oldPrice, discount, available, title, author } = r.value;
+    const { store, url, price, oldPrice, discount, available, title, author, parsedBy } = r.value;
 
     if (!detectedTitle && title) detectedTitle = title;
     if (!detectedAuthor && author) detectedAuthor = author;
@@ -169,6 +171,7 @@ export async function searchBookPrices(query: string): Promise<BookSearchResult>
       oldPrice,
       discount,
       available,
+      parsedBy,
     });
   }
 
