@@ -1,0 +1,17 @@
+name: Daily Price Check
+
+on:
+  schedule:
+    # 9:00 Kyiv time = 06:00 UTC (UTC+3)
+    - cron: '0 6 * * *'
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+jobs:
+  check-prices:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger daily price check
+        run: |
+          curl -f -X GET \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            "${{ secrets.APP_URL }}/api/cron"
