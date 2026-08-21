@@ -4,7 +4,7 @@ import { supabaseAdmin } from './supabase-server';
 export type AppRole = 'free' | 'plus' | 'admin';
 
 export async function requireUser(request: NextRequest) {
-  const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '');
+  const token = request.headers.get('authorization')?.replace(/^Bearer\s+/i, '') || request.cookies.get('book_price_session')?.value;
   if (!token) return null;
   const { data: { user }, error } = await supabaseAdmin.auth.getUser(token);
   return error ? null : user;
