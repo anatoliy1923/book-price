@@ -12,18 +12,19 @@ const MODEL_CHAIN = [
 const SYSTEM_PROMPT = `You are a precise book data extractor for a Ukrainian book price comparison service.
 
 Given a webpage content and a search query (book name/author), your job is to:
-1. Determine if this webpage is about the book the user searched for
+1. Determine if this webpage is a PRODUCT PAGE for the specific book being searched
 2. Extract structured pricing data
 
-IMPORTANT RULES:
-- "isCorrectBook" must be true ONLY if the page is clearly about the searched book (matching title AND/OR author)
-- If the page shows a different book entirely, set isCorrectBook to false
-- Prices must be in Ukrainian hryvnias (грн / ₴)
-- "price" is the current selling price (the one user would pay today)
-- "oldPrice" is the crossed-out / was-price (before discount)
-- "discount" is the percentage off (integer, e.g. 29 for 29%)
-- "available" is false only if explicitly stated as out of stock
-- Return ONLY valid JSON, no explanation, no markdown
+CRITICAL RULES:
+- "isCorrectBook" = true ONLY if the page is a product page for the searched book (title/author match)
+- "isCorrectBook" = false if: it's a category page, search results page, different book, or unrelated content
+- Prices must be in Ukrainian hryvnias (грн / ₴), realistic book prices are between 50 and 5000 грн
+- "price" = current selling price (what user pays today)
+- "oldPrice" = crossed-out price before discount (must be higher than price, but no more than 3x price)
+- "discount" = integer percentage, e.g. 29 for 29%. Maximum realistic book discount is 70%.
+- "available" = false only if page explicitly says out of stock
+- If you cannot find a clear price, set price to null
+- Return ONLY valid JSON, no markdown, no explanation
 
 JSON schema:
 {
@@ -46,23 +47,42 @@ export interface GeminiBookData {
   available: boolean;
 }
 
+function sanitize(data: GeminiBookData): GeminiBookData {
+  // Sanity checks — reject impossible values
+  let { price, oldPrice, discount } = data;
+
+  if (price !== null && (price < 30 || price > 8000)) price = null;
+  if (oldPrice !== null && price !== null) {
+    // Old price must be higher than current and no more than 3x
+    if (oldPrice <= price || oldPrice > price * 3) oldPrice = null;
+  }
+  if (oldPrice === null) discount = null;
+  if (discount !== null && (discount < 1 || discount > 70)) discount = null;
+
+  return { ...data, price, oldPrice, discount };
+}
+
 export async function extractBookData(
   pageContent: string,
   searchQuery: string
 ): Promise<GeminiBookData | null> {
+  if (!GEMINI_API_KEY) {
+    console.warn('[gemini] No API key set');
+    return null;
+  }
+
   const client = new GoogleGenAI({ apiKey: GEMINI_API_KEY });
 
-  // Truncate content to avoid token waste — first 4000 chars usually have the price
-  const truncated = pageContent.slice(0, 4000);
+  // First 5000 chars usually contain title, price, author
+  const truncated = pageContent.slice(0, 5000);
 
   const userMessage = `Search query: "${searchQuery}"
 
 Webpage content:
 ${truncated}
 
-Extract the book data as JSON.`;
+Return JSON only.`;
 
-  // Try each model in the fallback chain
   for (const modelId of MODEL_CHAIN) {
     try {
       const response = await client.models.generateContent({
@@ -71,29 +91,31 @@ Extract the book data as JSON.`;
         config: {
           systemInstruction: SYSTEM_PROMPT,
           temperature: 0,
-          thinkingConfig: { thinkingBudget: 0 }, // Disable thinking for speed/cost
         },
       });
 
-      const text = response.text?.trim() || '';
+      const text = response.text?.trim() ?? '';
+      if (!text) continue;
 
-      // Strip markdown code fences if present
-      const json = text.replace(/^```(?:json)?\n?/, '').replace(/\n?```$/, '').trim();
+      // Strip markdown fences if present
+      const json = text
+        .replace(/^```(?:json)?\s*/i, '')
+        .replace(/\s*```$/, '')
+        .trim();
 
       const parsed = JSON.parse(json) as GeminiBookData;
-
-      // Basic validation
       if (typeof parsed.isCorrectBook !== 'boolean') continue;
 
-      return parsed;
+      return sanitize(parsed);
     } catch (err) {
-      // Log and try next model
-      console.warn(`[gemini] Model ${modelId} failed:`, err instanceof Error ? err.message : err);
+      console.warn(
+        `[gemini] ${modelId} failed:`,
+        err instanceof Error ? err.message : String(err)
+      );
       continue;
     }
   }
 
-  // All models failed — return null, caller will fall back to regex parsing
   console.error('[gemini] All models failed for query:', searchQuery);
   return null;
 }

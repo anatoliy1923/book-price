@@ -204,7 +204,8 @@ function regexParsePrice(content: string): {
 
   for (const m of matches) {
     const num = parseFloat(m[1].replace(/\s/g, '').replace(',', '.'));
-    if (!isNaN(num) && num >= 20 && num <= 15000) prices.push(num);
+    // Realistic book price range
+    if (!isNaN(num) && num >= 50 && num <= 5000) prices.push(num);
   }
 
   const unique = [...new Set(prices)].sort((a, b) => a - b);
@@ -217,8 +218,12 @@ function regexParsePrice(content: string): {
 
   const price = unique[0];
   const max = unique[unique.length - 1];
-  const oldPrice = max > price * 1.05 ? max : null;
-  const discount = oldPrice ? Math.round((1 - price / oldPrice) * 100) : null;
 
-  return { price, oldPrice, discount, available };
+  // Old price: must be higher but no more than 3x (avoids ISBN/barcode garbage)
+  const oldPrice = max > price * 1.05 && max <= price * 3 ? max : null;
+  const discount = oldPrice ? Math.round((1 - price / oldPrice) * 100) : null;
+  // Discard if discount looks unrealistic
+  const validDiscount = discount !== null && discount <= 70 ? discount : null;
+
+  return { price, oldPrice: validDiscount ? oldPrice : null, discount: validDiscount, available };
 }
