@@ -3,18 +3,31 @@ import { extractBookData } from './gemini';
 const TAVILY_API_KEY = process.env.TAVILY_API_KEY!;
 const BASE_URL = 'https://api.tavily.com';
 
-export const STORES = [
-  { name: 'Yakaboo', domain: 'yakaboo.ua' },
-  { name: 'BookChef', domain: 'bookchef.ua' },
-  { name: 'Book.ua', domain: 'book.ua' },
-  { name: 'Vivat', domain: 'vivat.ua' },
-  { name: 'Bookovid', domain: 'bookovid.com' },
-  { name: 'Readeat', domain: 'readeat.com.ua' },
-  { name: 'Nash Format', domain: 'nashformat.ua' },
-  { name: 'Rozetka', domain: 'rozetka.com.ua' },
-  { name: 'Folio', domain: 'folio.com.ua' },
-  { name: 'Абабагаламага', domain: 'ababahalamaha.com.ua' },
-  { name: 'Кнігалюб', domain: 'knigolub.com.ua' },
+const KNOWN_STORES: Record<string, string> = {
+  'yakaboo.ua': 'Yakaboo',
+  'bookchef.ua': 'BookChef',
+  'book.ua': 'Book.ua',
+  'vivat.ua': 'Vivat',
+  'bookovid.com': 'Bookovid',
+  'readeat.com.ua': 'Readeat',
+  'nashformat.ua': 'Nash Format',
+  'rozetka.com.ua': 'Rozetka',
+  'folio.com.ua': 'Folio',
+  'ababahalamaha.com.ua': 'Абабагаламага',
+  'knigolub.com.ua': 'Кнігалюб',
+  'book-ye.com.ua': 'Книгарня Є',
+  'ksd.ua': 'КСД',
+  'knygarnya.com': 'Книгарня',
+  'balka-book.com': 'Balka Book',
+  'zhatka.com.ua': 'Жатка',
+  'lavkababuin.com': 'Лавка Бабуїн',
+  'sens.in.ua': 'Сенс',
+  'starylev.com.ua': 'Видавництво Старого Лева'
+};
+
+const JUNK_DOMAINS = [
+  'wikipedia.org', 'youtube.com', 'goodreads.com', 'prom.ua', 'olx.ua', 
+  'facebook.com', 'instagram.com', 'tiktok.com', 'pinterest.com', 'shafa.ua', 'izi.ua'
 ];
 
 export interface BookPrice {
@@ -36,45 +49,36 @@ export interface BookSearchResult {
   cachedAt: string;
 }
 
-// Search one store — returns best matching URL + snippet
-async function searchOneStore(
-  query: string,
-  store: { name: string; domain: string }
-): Promise<{ url: string; content: string } | null> {
+function getDomain(url: string): string {
+  try {
+    return new URL(url).hostname.replace('www.', '');
+  } catch {
+    return '';
+  }
+}
+
+// Perform a broad search on Tavily (like Google)
+async function fetchBroadSearch(searchQuery: string): Promise<Array<{url: string, content: string}>> {
   try {
     const res = await fetch(`${BASE_URL}/search`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         api_key: TAVILY_API_KEY,
-        query: `${query} купити ціна`,
+        query: searchQuery,
         search_depth: 'basic',
-        max_results: 4,
-        include_domains: [store.domain],
+        max_results: 15,
       }),
     });
-
-    if (!res.ok) return null;
+    if (!res.ok) return [];
     const data = await res.json();
-    const results: Array<{ url: string; content: string }> = data.results || [];
-
-    // Prefer product pages over category/search pages
-    const product =
-      results.find(
-        (r) =>
-          !r.url.includes('/search') &&
-          !r.url.includes('/catalog') &&
-          !r.url.includes('/category') &&
-          !/[?&]/.test(r.url.split('/').pop() ?? '')
-      ) || results[0];
-
-    return product ? { url: product.url, content: product.content || '' } : null;
+    return data.results || [];
   } catch {
-    return null;
+    return [];
   }
 }
 
-// Extract full page content via Tavily Extract
+// Extract full page HTML via Tavily Extract
 async function extractPage(url: string): Promise<string> {
   try {
     const res = await fetch(`${BASE_URL}/extract`, {
@@ -82,7 +86,6 @@ async function extractPage(url: string): Promise<string> {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ api_key: TAVILY_API_KEY, urls: [url] }),
     });
-
     if (!res.ok) return '';
     const data = await res.json();
     const result = (data.results || [])[0];
@@ -93,35 +96,50 @@ async function extractPage(url: string): Promise<string> {
 }
 
 export async function searchBookPrices(query: string): Promise<BookSearchResult> {
-  // Step 1: Search all stores in parallel
-  const storeSearches = await Promise.allSettled(
-    STORES.map((store) =>
-      searchOneStore(query, store).then((r) => ({ store, result: r }))
-    )
-  );
+  // Step 1: Do 2 broad searches to cast a wide net across the Ukrainian web
+  const searchResults = await Promise.all([
+    fetchBroadSearch(`${query} купити книга`),
+    fetchBroadSearch(`${query} ціна грн`)
+  ]);
 
-  // Step 2: Collect found URLs
-  const found: Array<{ store: (typeof STORES)[0]; url: string; snippet: string }> = [];
-  for (const r of storeSearches) {
-    if (r.status === 'fulfilled' && r.value.result) {
-      found.push({
-        store: r.value.store,
-        url: r.value.result.url,
-        snippet: r.value.result.content,
-      });
+  const allFound = [...searchResults[0], ...searchResults[1]];
+
+  // Step 2: Group by domain, filter junk, prefer product pages
+  const domainMap = new Map<string, {url: string, snippet: string}>();
+
+  for (const item of allFound) {
+    const domain = getDomain(item.url);
+    if (!domain || JUNK_DOMAINS.includes(domain)) continue;
+    // Only accept .ua domains or explicitly known bookstores
+    if (!domain.endsWith('.ua') && !KNOWN_STORES[domain]) continue;
+
+    const isProduct = !item.url.includes('/search') && !item.url.includes('/catalog') && !item.url.includes('/category');
+
+    if (!domainMap.has(domain)) {
+      domainMap.set(domain, { url: item.url, snippet: item.content });
+    } else if (isProduct && domainMap.get(domain)?.url.includes('/search')) {
+      // Upgrade from search page to product page if found
+      domainMap.set(domain, { url: item.url, snippet: item.content });
     }
   }
 
-  // Step 3: Extract full page content for each found URL in parallel
-  // Keep the snippet for Gemini to use as fallback!
+  // Take top 12 unique domains to process
+  const topStores = Array.from(domainMap.entries()).slice(0, 12).map(([domain, data]) => ({
+    domain,
+    name: KNOWN_STORES[domain] || domain.split('.')[0].charAt(0).toUpperCase() + domain.split('.')[0].slice(1),
+    url: data.url,
+    snippet: data.snippet
+  }));
+
+  // Step 3: Extract full HTML in parallel
   const pageContents = await Promise.allSettled(
-    found.map(async (item) => {
-      const full = await extractPage(item.url);
-      return { ...item, content: full || item.snippet };
+    topStores.map(async (store) => {
+      const fullHtml = await extractPage(store.url);
+      return { ...store, content: fullHtml || store.snippet };
     })
   );
 
-  // Step 4: Use Gemini to verify book identity + extract prices — all in parallel
+  // Step 4: Feed to Gemini
   const prices: BookPrice[] = [];
   let detectedTitle = '';
   let detectedAuthor = '';
@@ -129,54 +147,36 @@ export async function searchBookPrices(query: string): Promise<BookSearchResult>
   const geminiResults = await Promise.allSettled(
     pageContents.map(async (r) => {
       if (r.status !== 'fulfilled') return null;
-      const { store, url, content, snippet } = r.value;
+      const { name, domain, url, content, snippet } = r.value;
 
-      // Try Gemini first; pass BOTH html content and the search snippet!
       const geminiData = await extractBookData(content, query, snippet);
 
       if (geminiData) {
-        // Skip pages that are not about the searched book
         if (!geminiData.isCorrectBook) return null;
-
         return {
-          store,
-          url,
-          price: geminiData.price,
-          oldPrice: geminiData.oldPrice,
-          discount: geminiData.discount,
-          available: geminiData.available,
-          title: geminiData.title,
-          author: geminiData.author,
+          store: name, domain, url,
+          price: geminiData.price, oldPrice: geminiData.oldPrice,
+          discount: geminiData.discount, available: geminiData.available,
+          title: geminiData.title, author: geminiData.author,
           parsedBy: 'gemini' as const,
         };
       }
 
-      // Regex fallback
       const parsed = regexParsePrice(content);
-      return { store, url, ...parsed, title: '', author: '', parsedBy: 'regex' as const };
+      return { store: name, domain, url, ...parsed, title: '', author: '', parsedBy: 'regex' as const };
     })
   );
 
   for (const r of geminiResults) {
     if (r.status !== 'fulfilled' || !r.value) continue;
-    const { store, url, price, oldPrice, discount, available, title, author, parsedBy } = r.value;
-
+    const { store, domain, url, price, oldPrice, discount, available, title, author, parsedBy } = r.value;
     if (!detectedTitle && title) detectedTitle = title;
     if (!detectedAuthor && author) detectedAuthor = author;
 
-    prices.push({
-      store: store.name,
-      domain: store.domain,
-      url,
-      price,
-      oldPrice,
-      discount,
-      available,
-      parsedBy,
-    });
+    prices.push({ store, domain, url, price, oldPrice, discount, available, parsedBy });
   }
 
-  // Step 5: Sort — available + has price first, then by price asc
+  // Step 5: Sort
   prices.sort((a, b) => {
     const aOk = a.available && a.price !== null;
     const bOk = b.available && b.price !== null;
