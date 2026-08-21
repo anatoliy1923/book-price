@@ -13,7 +13,9 @@ function formatPrice(price: number): string {
 }
 
 export default function PriceRow({ item, isBest }: PriceRowProps) {
-  const isUnavailable = !item.available || item.price === null;
+  const isOutOfStock = !item.available;
+  const isPriceMissing = item.price === null;
+  const isUnavailable = isOutOfStock || isPriceMissing;
 
   return (
     <a
@@ -47,7 +49,7 @@ export default function PriceRow({ item, isBest }: PriceRowProps) {
 
       {/* Prices */}
       <span style={{ flex: 1, display: 'flex', alignItems: 'baseline', gap: '8px' }}>
-        {item.price !== null ? (
+        {!isPriceMissing ? (
           <>
             <span
               style={{
@@ -56,7 +58,7 @@ export default function PriceRow({ item, isBest }: PriceRowProps) {
                 color: '#1D1D1F',
               }}
             >
-              {formatPrice(item.price)}
+              {formatPrice(item.price!)}
             </span>
             {item.oldPrice && (
               <span
@@ -83,7 +85,7 @@ export default function PriceRow({ item, isBest }: PriceRowProps) {
           </>
         ) : (
           <span style={{ fontSize: '15px', color: '#AEAEB2' }}>
-            {isUnavailable ? 'Немає в наявності' : 'Ціна недоступна'}
+            {isOutOfStock ? 'Немає в наявності' : 'Ціна не знайдена'}
           </span>
         )}
       </span>

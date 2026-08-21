@@ -22,7 +22,8 @@ CRITICAL RULES:
 - "price" = current selling price (what user pays today)
 - "oldPrice" = crossed-out price before discount (must be higher than price, but no more than 3x price)
 - "discount" = integer percentage, e.g. 29 for 29%. Maximum realistic book discount is 70%.
-- "available" = false only if page explicitly says out of stock
+- "available" = true IF there is a "Купити", "В кошик", "Додати у кошик", or "Придбати" button.
+- "available" = false ONLY IF the page EXPLICITLY states "Немає в наявності", "Закінчився", "Очікується", or "Недоступний" for the MAIN product (ignore other books on the page).
 - If you cannot find a clear price, set price to null
 - Return ONLY valid JSON, no markdown, no explanation
 
