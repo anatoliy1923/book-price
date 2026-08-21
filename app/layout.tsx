@@ -1,6 +1,7 @@
 import type { Metadata, Viewport } from 'next';
 import Link from 'next/link';
 import AuthGate from '@/components/AuthGate';
+import MobileNav from '@/components/MobileNav';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -17,8 +18,7 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  userScalable: true,
   themeColor: '#FDFBF7',
 };
 
@@ -27,11 +27,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="uk">
       <body className="antialiased bg-background">
         <header className="h-[56px] border-b border-gray-200/60 bg-white/80 backdrop-blur-md sticky top-0 z-50">
-          <div className="max-w-[680px] mx-auto h-full px-5 flex justify-between items-center">
+          <div className="max-w-[680px] mx-auto h-full px-4 sm:px-5 flex justify-between items-center">
             <Link href="/" className="text-[19px] font-bold tracking-tight text-vivat-dark hover:opacity-80 transition-opacity">
               Книжки.
             </Link>
-            <div className="flex items-center gap-5">
+            <div className="hidden sm:flex items-center gap-5">
               <Link href="/promotions" className="text-[15px] font-medium text-vivat hover:text-vivat-dark transition-colors">
                 Акції
               </Link>
@@ -41,6 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
               <Link href="/admin" className="text-[15px] font-medium text-vivat hover:text-vivat-dark transition-colors">Кабінет</Link>
               <Link href="/feedback" className="text-[15px] font-medium text-vivat hover:text-vivat-dark transition-colors">Допомога</Link>
             </div>
+            <MobileNav />
           </div>
         </header>
 
