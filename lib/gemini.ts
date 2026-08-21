@@ -16,16 +16,14 @@ Given a webpage content and a search query (book name/author), your job is to:
 2. Extract structured pricing data
 
 CRITICAL RULES:
-- "isCorrectBook" = true ONLY if the page is a product page for the searched book (title/author match)
-- "isCorrectBook" = false if: it's a category page, search results page, different book, or unrelated content
-- Prices must be in Ukrainian hryvnias (грн / ₴), realistic book prices are between 50 and 5000 грн
-- "price" = current selling price (what user pays today)
-- "oldPrice" = crossed-out price before discount (must be higher than price, but no more than 3x price)
-- "discount" = integer percentage, e.g. 29 for 29%. Maximum realistic book discount is 70%.
-- "available" = true IF there is a "Купити", "В кошик", "Додати у кошик", or "Придбати" button.
-- "available" = false ONLY IF the page EXPLICITLY states "Немає в наявності", "Закінчився", "Очікується", or "Недоступний" for the MAIN product (ignore other books on the page).
-- If you cannot find a clear price, set price to null
-- Return ONLY valid JSON, no markdown, no explanation
+1. "isCorrectBook" = true ONLY if the page is a product page for the searched book.
+2. UKRAINIAN STORES USE REACT/VUE. The visible text might say "out of stock" or be missing prices because JS hasn't executed.
+3. YOU MUST PRIORITIZE <script type="application/ld+json">, Schema.org/Product, Schema.org/Book, and <meta property="product:price:amount"> tags!
+4. If JSON-LD says "InStock", set available=true and extract the price from there, EVEN IF the raw text says "Немає в наявності".
+5. Prices must be in Ukrainian hryvnias (грн / ₴). 
+6. "price" = current selling price. "oldPrice" = before discount. "discount" = integer percentage (1-70).
+7. "available" = true IF JSON-LD says InStock OR there is a "Купити", "В кошик" button.
+8. Return ONLY valid JSON, no markdown, no explanation.
 
 JSON schema:
 {
