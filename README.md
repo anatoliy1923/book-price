@@ -19,7 +19,7 @@ PWA для порівняння цін на книжки в українськи
 ### 2. Vercel
 
 1. Зайдіть на [vercel.com](https://vercel.com) → Add New Project → Import `anatoliy1923/book-price`
-2. Run `supabase/security_upgrade.sql` after the existing schema files. In Supabase Auth, enable email confirmations and configure the production Site URL / redirect URL.
+2. Run `supabase/security_upgrade.sql` after the existing schema files. In Supabase Auth, enable Email + Password and email confirmations, then configure the production Site URL / redirect URL. Enable leaked-password protection in Supabase Auth security settings.
 
 3. У розділі **Environment Variables** додайте:
 
@@ -34,7 +34,7 @@ PWA для порівняння цін на книжки в українськи
 | `SUPABASE_SERVICE_ROLE_KEY` | Server-only ключ Supabase; ніколи не додавайте `NEXT_PUBLIC_` |
 | `VAPID_CONTACT_EMAIL` | Контактна email-адреса для Web Push |
 
-4. Deploy. The first admin must be set manually in Supabase SQL Editor: `update public.profiles set role = 'admin' where email = 'your-email@example.com';`
+4. Deploy. First, register your own email in the app. Then in Supabase SQL Editor run: `update public.profiles set role = 'admin' where email = 'your-email@example.com';` Refresh the app and open `/admin`.
 
 The product is free for users but has enforced shared-capacity limits: Free = 2 fresh searches/day and 20/month; Plus = 5/day and 60/month. Cached searches are free. Provider keys are never rotated to bypass a provider quota; configure only keys/projects you are permitted to operate.
 
