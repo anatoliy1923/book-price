@@ -5,6 +5,9 @@
 :root {
   --background: #FDFBF7;
   --foreground: #1D1D1F;
+  --ink-muted: #65706A;
+  --line: #DDE6DF;
+  --paper: #FFFFFF;
 }
 
 html { width: 100%; overflow-x: clip; background: var(--background); }
@@ -15,6 +18,10 @@ body {
   background: var(--background);
   font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
 img, svg, video, canvas { max-width: 100%; }
 button, input, textarea, select { font: inherit; }
+::selection { background: #DDEDE4; color: #0A422D; }
+:focus-visible { outline: 3px solid rgba(227, 168, 87, 0.55); outline-offset: 3px; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } }

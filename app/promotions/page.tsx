@@ -35,14 +35,12 @@ export default function PromotionsPage() {
 
   return (
     <div className="animate-in fade-in duration-500">
-      <div className="flex justify-between items-start mb-2">
-        <h1 className="text-[32px] md:text-[36px] font-bold tracking-tight text-vivat-dark">
-          Акції та знижки
-        </h1>
+      <div className="flex justify-between items-start gap-4 border-b border-vivat-light pb-6">
+        <div><p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-vivat-accent">Добірка пропозицій</p><h1 className="font-book text-[40px] leading-none tracking-[-0.05em] text-vivat-dark sm:text-[46px]">Акції</h1></div>
         <button
           onClick={() => fetchPromos(true)}
           disabled={loading || refreshing}
-          className={`text-[13px] bg-vivat-light text-vivat-dark px-3 py-2 rounded-xl transition-all font-medium flex items-center gap-2 ${
+          className={`shrink-0 rounded-lg border border-vivat-light bg-white px-3 py-2 text-[13px] font-semibold text-vivat-dark transition-all flex items-center gap-2 ${
             (loading || refreshing) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-vivat/20 active:scale-95'
           }`}
         >
@@ -54,8 +52,8 @@ export default function PromotionsPage() {
         </button>
       </div>
       
-      <p className="text-[15px] text-gray-500 mb-8 max-w-sm">
-        Зібрані актуальні пропозиції з твоїх улюблених книгарень: Megogo, Readeat, КСД, Лабораторія, Vivat, Сенс. (Включаючи Instagram/Telegram).
+      <p className="mb-8 mt-5 max-w-md text-[15px] leading-6 text-gray-500">
+        Актуальні пропозиції Vivat, КСД, Readeat, Лабораторії, Сенсу та Megogo — з сайтів і публічних каналів магазинів.
       </p>
 
       {(loading || refreshing) && promos.length === 0 && (
@@ -84,12 +82,12 @@ export default function PromotionsPage() {
               href={promo.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="block bg-white rounded-2xl p-5 shadow-soft transition-all duration-300 hover:shadow-md border border-vivat-light group relative overflow-hidden"
+            className="group relative block border-y border-vivat-light bg-white p-5 transition-colors hover:bg-vivat-light/35 sm:rounded-2xl sm:border"
             >
               <div className="absolute top-0 right-0 px-3 py-1 bg-vivat-accent/10 text-vivat-accent font-medium text-[11px] rounded-bl-xl uppercase tracking-wider">
                 {promo.store}
               </div>
-              <h2 className="text-[19px] font-semibold text-foreground leading-tight tracking-tight mb-2 pr-16 group-hover:text-vivat transition-colors">
+              <h2 className="font-book text-[25px] font-bold leading-[1.05] tracking-[-0.03em] text-foreground mb-2 pr-16 group-hover:text-vivat transition-colors">
                 {promo.title}
               </h2>
               <p className="text-[15px] text-gray-500 line-clamp-2">

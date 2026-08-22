@@ -21,6 +21,7 @@ const config: Config = {
       },
       fontFamily: {
         sans: ['-apple-system', 'BlinkMacSystemFont', 'Inter', 'sans-serif'],
+        book: ['Iowan Old Style', 'Palatino Linotype', 'Book Antiqua', 'Palatino', 'Georgia', 'serif'],
       },
       borderRadius: {
         '2xl': '1rem',

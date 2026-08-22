@@ -19,24 +19,24 @@ export default function PriceRow({ item, isBest }: PriceRowProps) {
       href={item.url}
       target="_blank"
       rel="noopener noreferrer"
-      className={`flex items-center gap-3 py-3 transition-opacity ${
-        isBest ? 'border-l-2 border-vivat-accent pl-3 -ml-[14px]' : 'border-l-2 border-transparent pl-[14px] -ml-[14px]'
-      } ${isUnavailable ? 'opacity-50 hover:opacity-70' : 'hover:bg-vivat-light/30 rounded-r-xl'}`}
+      className={`flex min-w-0 items-center gap-3 border-l-2 py-3 transition-colors ${
+        isBest ? 'border-vivat-accent bg-[#FFF9EF] pl-3 pr-2' : 'border-transparent px-3 hover:bg-vivat-light/50'
+      } ${isUnavailable ? 'opacity-55 hover:opacity-70' : ''}`}
     >
       {/* Store name */}
-      <span className={`flex-none w-[110px] text-[15px] truncate ${isBest ? 'text-vivat-dark font-medium' : 'text-foreground font-normal'}`}>
+      <span className={`min-w-0 flex-[0_1_42%] truncate text-[14px] ${isBest ? 'font-semibold text-vivat-dark' : 'font-medium text-foreground'}`}>
         {item.store}
       </span>
 
       {/* Prices */}
-      <span className="flex-1 flex items-baseline gap-2 flex-wrap">
+      <span className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2 gap-y-1">
         {isPriceMissing ? (
           <span className="text-[15px] text-gray-400">Ціна не знайдена</span>
         ) : isOutOfStock || !item.available ? (
           <span className="text-[15px] text-gray-400">Немає в наявності</span>
         ) : (
           <>
-            <span className={`text-[17px] ${isBest ? 'font-semibold text-foreground' : 'font-normal text-foreground'}`}>
+            <span className={`text-[17px] tabular-nums ${isBest ? 'font-semibold text-foreground' : 'font-medium text-foreground'}`}>
               {formatPrice(item.price!)}
             </span>
             

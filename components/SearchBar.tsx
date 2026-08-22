@@ -28,12 +28,12 @@ export default function SearchBar({ onSearch, loading }: SearchBarProps) {
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Назва книжки або автор..."
           disabled={loading}
-          className="w-full h-14 pl-5 pr-14 text-[17px] bg-white border border-gray-200 rounded-2xl shadow-sm outline-none transition-all focus:border-vivat focus:ring-4 focus:ring-vivat/10 disabled:opacity-50 placeholder:text-gray-400"
+          className="h-14 w-full border border-vivat-light bg-white pl-5 pr-14 text-[16px] shadow-[0_8px_24px_-18px_rgba(10,66,45,0.45)] outline-none transition-all placeholder:text-gray-400 focus:border-vivat disabled:opacity-50 sm:rounded-xl"
         />
         <button
           type="submit"
           disabled={loading || query.trim().length < 2}
-          className="absolute right-2 top-2 bottom-2 w-10 flex items-center justify-center rounded-xl bg-vivat text-white transition-transform active:scale-95 disabled:bg-gray-300 disabled:active:scale-100 disabled:cursor-not-allowed hover:bg-vivat-dark"
+          className="absolute bottom-2 right-2 top-2 flex w-10 items-center justify-center rounded-lg bg-vivat text-white transition-colors hover:bg-vivat-dark disabled:cursor-not-allowed disabled:bg-gray-300"
         >
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
             <circle cx="11" cy="11" r="8"></circle>
@@ -46,7 +46,7 @@ export default function SearchBar({ onSearch, loading }: SearchBarProps) {
         <button
           type="button"
           onClick={() => setShowStore(!showStore)}
-          className="text-[13px] text-gray-500 hover:text-vivat transition-colors flex items-center gap-1 w-max"
+          className="w-max max-w-full text-left text-[13px] text-gray-500 transition-colors hover:text-vivat"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showStore ? 'rotate-90' : ''}`}>
             <polyline points="9 18 15 12 9 6"></polyline>
@@ -62,7 +62,7 @@ export default function SearchBar({ onSearch, loading }: SearchBarProps) {
               onChange={(e) => setStore(e.target.value)}
               placeholder="Напр. Сенс, Megogo, Vivat..."
               disabled={loading}
-              className="w-full h-11 pl-4 pr-4 text-[15px] bg-white/50 border border-gray-200 rounded-xl outline-none transition-all focus:border-vivat focus:bg-white disabled:opacity-50 placeholder:text-gray-400"
+              className="h-11 w-full border border-vivat-light bg-white px-4 text-[15px] outline-none transition-all placeholder:text-gray-400 focus:border-vivat disabled:opacity-50 sm:rounded-lg"
             />
           </div>
         )}

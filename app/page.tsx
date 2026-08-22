@@ -171,22 +171,20 @@ export default function Home() {
         />
       )}
 
-      <div className="flex justify-between items-start mb-2">
-        <h1 className="text-[32px] md:text-[36px] font-bold tracking-tight text-vivat-dark">
-          Пошук книжок
-        </h1>
+      <div className="flex justify-between items-start gap-3 border-b border-vivat-light pb-6">
+        <div><p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-vivat-accent">Порівняння цін</p><h1 className="font-book text-[40px] leading-none tracking-[-0.05em] text-vivat-dark sm:text-[46px]">Знайти книжку</h1></div>
         {typeof window !== 'undefined' && 'PushManager' in window && !pushEnabled && (
           <button 
             onClick={subscribeToPush}
-            className="text-[12px] bg-vivat-light text-vivat-dark px-3 py-1.5 rounded-lg hover:bg-vivat/20 transition-colors font-medium"
+            className="shrink-0 rounded-lg border border-vivat-light bg-white px-3 py-2 text-[12px] font-semibold text-vivat-dark transition hover:bg-vivat-light"
           >
             Увімкнути сповіщення
           </button>
         )}
       </div>
 
-      <p className="text-[15px] text-gray-500 mb-8 max-w-sm">
-        Порівнюємо ціни в усіх українських інтернет-книгарнях одночасно
+      <p className="mb-8 mt-5 max-w-md text-[15px] leading-6 text-gray-500">
+        Введіть назву або автора. Ми зберемо актуальні пропозиції українських книгарень в одному списку.
       </p>
 
       <SearchBar onSearch={handleSearch} loading={loading} />
@@ -204,7 +202,7 @@ export default function Home() {
       )}
 
       {error && !loading && (
-        <div className="mt-6 p-4 bg-red-50 border border-red-100 rounded-2xl">
+        <div className="mt-6 border-l-2 border-red-500 bg-red-50/60 p-4">
           <p className="text-[15px] text-red-600 font-medium">{error}</p>
         </div>
       )}
@@ -222,8 +220,8 @@ export default function Home() {
       )}
 
       {!loading && !result && !error && (
-        <div className="mt-12 text-center text-gray-400">
-          <p className="text-[15px]">Введіть назву книжки щоб знайти ціни</p>
+        <div className="mt-12 border-t border-vivat-light pt-5 text-gray-400">
+          <p className="text-[14px] leading-6">Наприклад: <span className="font-medium text-vivat">«Тигролови» Багряний</span> або назва без автора.</p>
         </div>
       )}
     </div>

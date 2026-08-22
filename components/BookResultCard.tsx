@@ -48,11 +48,11 @@ export default function BookResultCard({
   const bestPrice = availablePrices.length > 0 ? Math.min(...availablePrices) : null;
 
   return (
-    <div className="bg-white rounded-2xl p-5 mb-5 shadow-soft transition-all duration-300 hover:shadow-md border border-vivat-light">
+    <div className="mb-5 border-y border-vivat-light bg-white px-4 py-5 sm:rounded-2xl sm:border sm:p-6">
       {/* Header */}
       <div className="flex justify-between items-start gap-4 mb-4">
         <div>
-          <h2 className="text-[19px] font-semibold text-foreground leading-tight tracking-tight mb-1">
+          <h2 className="font-book text-[26px] font-bold leading-[1.04] tracking-[-0.035em] text-foreground">
             {result.title}
           </h2>
           {result.author && (
@@ -91,7 +91,7 @@ export default function BookResultCard({
 
       {/* Footer */}
       <div className="mt-4 pt-4 border-t border-vivat-light">
-        <div className="flex justify-between items-center">
+        <div className="flex flex-wrap justify-between gap-x-4 gap-y-2 items-center">
           <span className="text-[13px] text-gray-400">
             Оновлено {timeAgo(result.cachedAt)}
           </span>
@@ -106,20 +106,6 @@ export default function BookResultCard({
           </button>
         </div>
 
-        {/* Debug: parser stats */}
-        {result.prices.length > 0 && (() => {
-          const geminiCount = result.prices.filter(p => p.parsedBy === 'gemini').length;
-          const regexCount = result.prices.filter(p => p.parsedBy === 'regex').length;
-          const colorClass = geminiCount > 0 ? 'text-vivat' : 'text-gray-400';
-          const label = geminiCount > 0
-            ? `Gemini: ${geminiCount}${regexCount > 0 ? ` · Regex: ${regexCount}` : ''}`
-            : `Regex: ${regexCount} (Gemini недоступний)`;
-          return (
-            <p className={`mt-2 text-[11px] ${colorClass} opacity-60`}>
-              {label}
-            </p>
-          );
-        })()}
       </div>
     </div>
   );
