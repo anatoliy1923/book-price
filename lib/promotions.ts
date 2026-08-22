@@ -22,6 +22,7 @@ const socialDomains = ['instagram.com', 'facebook.com', 't.me'];
 const partnerDomains = ['book.ua', 'gotoshop.ua'];
 const activeTerms = /акці|знижк|розпродаж|закритт.{0,30}(магазин|книгарн)|промокод|безкоштовн.{0,12}доставк|(?:1|2)\s*\+\s*1|передзамов|зустріч.{0,20}автор|презентаці|книжков.{0,20}(поді|фест|клуб)|новинк/i;
 const staleTerms = /акці[яї].{0,40}(заверш|закінч)|закінчил|минул(?:а|ий|ого)|торішн|202[0-5]/i;
+const navigationNoise = /\[[^\]]{1,80}\]\(\/(?:orders|about|news|account|loyalty)|\/(?:orders|about|news)\b|мо[їi] замовлення|програма лояльності|актуальна пропозиція/i;
 
 async function tavily(endpoint: 'search'|'extract', body: Record<string, unknown>) {
   let lastError: Error | undefined;
@@ -55,11 +56,11 @@ function sourceStore(url: string, text = '') {
 }
 function clean(value: unknown, max: number) { return typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, max) : ''; }
 
-function fallback(evidence: Evidence): Promo | null {
-  if (!activeTerms.test(evidence.text) || staleTerms.test(evidence.text)) return null;
-  const text = clean(evidence.text, 360); const sentence = text.split(/(?<=[.!?])\s/)[0] || text;
-  const kind: Promo['kind'] = /зустріч|презентаці|поді|фест|клуб/i.test(text) ? 'event' : /новинк|передзамов/i.test(text) ? 'news' : 'promotion';
-  return { store: evidence.store, title: kind === 'event' ? 'Подія для читачів' : kind === 'news' ? 'Новинки та передзамовлення' : 'Актуальна пропозиція', description: sentence, url: evidence.url, kind, source: evidence.source };
+function focusedPromotionText(text: string) {
+  const compactText = clean(text, 9000);
+  const matches = [...compactText.matchAll(/акці|знижк|розпродаж|закритт.{0,30}(магазин|книгарн)|промокод|безкоштовн.{0,12}доставк|(?:1|2)\s*\+\s*1|передзамов|зустріч.{0,20}автор|презентаці|книжков.{0,20}(поді|фест|клуб)|новинк/gi)];
+  const chunks = matches.slice(0, 5).map((match) => compactText.slice(Math.max(0, (match.index || 0) - 260), Math.min(compactText.length, (match.index || 0) + 680)));
+  return clean(chunks.join('\n---\n'), 3200);
 }
 
 function normalize(parsed: unknown, evidence: Evidence[]) {
@@ -69,7 +70,7 @@ function normalize(parsed: unknown, evidence: Evidence[]) {
     if (!entry || typeof entry !== 'object') return [];
     const value = entry as Record<string, unknown>; const sourceId = typeof value.sourceId === 'number' ? value.sourceId : -1; const source = evidence.find((item) => item.id === sourceId);
     const title = clean(value.title, 100); const description = clean(value.description, 260); const kind = value.kind === 'event' || value.kind === 'news' ? value.kind : 'promotion';
-    if (!source || !title || !description || !activeTerms.test(`${title} ${description} ${source.text}`) || staleTerms.test(`${title} ${description} ${source.text}`)) return [];
+    if (!source || source.store === 'Книжкові новини' || !title || !description || navigationNoise.test(`${title} ${description}`) || activeTerms.test(`${title} ${description}`) === false || staleTerms.test(`${title} ${description} ${source.text}`)) return [];
     const key = `${source.store}:${title.toLowerCase()}`; if (seen.has(key)) return []; seen.add(key);
     return [{ store: source.store, title, description, url: source.url, kind, source: source.source }];
   });
@@ -92,11 +93,10 @@ export async function fetchPromotions(): Promise<PromotionSnapshot> {
       const host = new URL(result.url).hostname.replace(/^www\./, ''); const text = clean(`${result.title || ''}. ${result.content || ''}`, 1200); const social = socialDomains.some((domain) => host === domain || host.endsWith(`.${domain}`)); const partner = partnerDomains.some((domain) => host === domain || host.endsWith(`.${domain}`));
       return [{ id: direct.length + index, store: sourceStore(result.url, text), url: result.url, text, source: social ? 'social' as const : partner ? 'partner' as const : 'official' as const, publishedAt: result.published_date }];
     });
-    const evidence = [...direct, ...searched].filter((item) => item.text.length > 20 && !staleTerms.test(item.text)).slice(0, 24);
-    const prompt = `You curate timely Ukrainian book-lover updates. Today is ${new Date().toISOString().slice(0, 10)}. Use ONLY these numbered sources. Return promotions, reader events, or new/pre-order announcements that are current within the source's recent window. Do not report a past campaign, generic store description, single-book markdown, delivery fee, or an unsupported claim. Every result must use its sourceId and quote only facts in that source. Return JSON array: [{"sourceId":number,"kind":"promotion"|"event"|"news","title":string,"description":string}]. Sources: ${JSON.stringify(evidence.map(({ id, store, url, text, source, publishedAt }) => ({ id, store, url, text, source, publishedAt })))} `;
+    const evidence = [...direct, ...searched].map((item) => ({ ...item, text: focusedPromotionText(item.text) })).filter((item) => item.text.length > 20 && !staleTerms.test(item.text) && !navigationNoise.test(item.text)).slice(0, 24);
+    const prompt = `You curate timely Ukrainian book-lover updates. Today is ${new Date().toISOString().slice(0, 10)}. Use ONLY these numbered sources. Return promotions, reader events, or new/pre-order announcements that are current within the source's recent window. Do not report a past campaign, generic store description, single-book markdown, delivery fee, navigation text, menu labels, URLs, or an unsupported claim. Never use generic titles such as "Актуальна пропозиція". Every result must use its sourceId and quote only facts in that source. Return JSON array: [{"sourceId":number,"kind":"promotion"|"event"|"news","title":string,"description":string}]. Sources: ${JSON.stringify(evidence.map(({ id, store, url, text, source, publishedAt }) => ({ id, store, url, text, source, publishedAt })))} `;
     const promos = normalize(await json(prompt), evidence);
-    const fallbackPromos = promos.length ? promos : evidence.map(fallback).filter((item): item is Promo => Boolean(item)).slice(0, 6);
-    return { promos: fallbackPromos.slice(0, 10), checkedAt: new Date().toISOString(), sourceCount: evidence.length };
+    return { promos: promos.slice(0, 10), checkedAt: new Date().toISOString(), sourceCount: evidence.length };
   } catch (error) {
     console.error('Failed to fetch promotions', error);
     return { promos: [], checkedAt: new Date().toISOString(), sourceCount: 0 };

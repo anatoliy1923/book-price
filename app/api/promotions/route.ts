@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
     const user = await requireUser(req); if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     const role = await getRole(user.id);
     const force = req.nextUrl.searchParams.get('force') === 'true';
-    const CACHE_KEY = '__GLOBAL_PROMOS_V3__';
+    const CACHE_KEY = '__GLOBAL_PROMOS_V4__';
     
     // Check cache
     if (!force) {

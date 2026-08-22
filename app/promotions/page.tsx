@@ -40,11 +40,11 @@ export default function PromotionsPage() {
   return (
     <div className="animate-in fade-in duration-500">
       <div className="flex justify-between items-start gap-4 border-b border-vivat-light pb-6">
-        <div><p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-vivat-accent">Добірка пропозицій</p><h1 className="font-book text-[40px] leading-none tracking-[-0.05em] text-vivat-dark sm:text-[46px]">Акції</h1></div>
+        <div className="min-w-0"><p className="mb-2 text-[11px] font-bold uppercase tracking-[0.13em] text-vivat-accent">Добірка пропозицій</p><h1 className="text-[32px] font-bold leading-none tracking-tight text-vivat-dark sm:text-[46px]">Акції</h1></div>
         {canRefresh && <button
           onClick={() => fetchPromos(true)}
           disabled={loading || refreshing}
-          className={`shrink-0 rounded-lg border border-vivat-light bg-white px-3 py-2 text-[13px] font-semibold text-vivat-dark transition-all flex items-center gap-2 ${
+          className={`shrink-0 rounded-lg border border-vivat-light bg-white px-2.5 py-2 text-[12px] font-semibold text-vivat-dark transition-all flex items-center gap-1.5 sm:px-3 sm:text-[13px] ${
             (loading || refreshing) ? 'opacity-50 cursor-not-allowed' : 'hover:bg-vivat/20 active:scale-95'
           }`}
         >
@@ -86,15 +86,15 @@ export default function PromotionsPage() {
               href={promo.url}
               target="_blank"
               rel="noopener noreferrer"
-            className="group relative block border-y border-vivat-light bg-white p-5 transition-colors hover:bg-vivat-light/35 sm:rounded-2xl sm:border"
+            className="group relative block overflow-hidden border-y border-vivat-light bg-white p-4 transition-colors hover:bg-vivat-light/35 sm:rounded-2xl sm:border sm:p-5"
             >
-              <div className="absolute top-0 right-0 px-3 py-1 bg-vivat-accent/10 text-vivat-accent font-medium text-[11px] rounded-bl-xl uppercase tracking-wider">
+              <div className="absolute right-0 top-0 max-w-[48%] truncate rounded-bl-xl bg-vivat-accent/10 px-2.5 py-1 text-[10px] font-medium uppercase tracking-[0.1em] text-vivat-accent sm:max-w-[55%] sm:px-3 sm:text-[11px]">
                 {promo.kind === 'event' ? 'Подія' : promo.kind === 'news' ? 'Новини' : promo.store}
               </div>
-              <h2 className="font-book text-[25px] font-bold leading-[1.05] tracking-[-0.03em] text-foreground mb-2 pr-16 group-hover:text-vivat transition-colors">
+              <h2 className="mb-2 pr-16 text-[22px] font-bold leading-[1.12] tracking-tight text-foreground transition-colors group-hover:text-vivat sm:text-[25px]">
                 {promo.title}
               </h2>
-              <p className="text-[15px] text-gray-500 line-clamp-2">
+              <p className="line-clamp-3 text-[14px] leading-6 text-gray-500 sm:line-clamp-2 sm:text-[15px]">
                 {promo.description}
               </p>
               <div className="mt-4 text-[13px] font-medium text-vivat-accent flex items-center gap-1">
