@@ -10,6 +10,7 @@ export default function PromotionsPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [checkedAt, setCheckedAt] = useState<string | null>(null);
 
   const fetchPromos = async (force: boolean = false) => {
     try {
@@ -18,6 +19,7 @@ export default function PromotionsPage() {
       const data = await res.json();
       if (data.promos) {
         setPromos(data.promos);
+        setCheckedAt(data.checkedAt || null);
       } else {
         setError('Не вдалося завантажити акції');
       }
@@ -85,7 +87,7 @@ export default function PromotionsPage() {
             className="group relative block border-y border-vivat-light bg-white p-5 transition-colors hover:bg-vivat-light/35 sm:rounded-2xl sm:border"
             >
               <div className="absolute top-0 right-0 px-3 py-1 bg-vivat-accent/10 text-vivat-accent font-medium text-[11px] rounded-bl-xl uppercase tracking-wider">
-                {promo.store}
+                {promo.kind === 'event' ? 'Подія' : promo.kind === 'news' ? 'Новини' : promo.store}
               </div>
               <h2 className="font-book text-[25px] font-bold leading-[1.05] tracking-[-0.03em] text-foreground mb-2 pr-16 group-hover:text-vivat transition-colors">
                 {promo.title}
@@ -103,6 +105,7 @@ export default function PromotionsPage() {
           ))}
         </div>
       )}
+      {!loading && !error && checkedAt && <p className="mt-7 text-center text-xs text-gray-400">Перевірено {new Date(checkedAt).toLocaleString('uk-UA', { dateStyle: 'short', timeStyle: 'short' })}. Джерела: офіційні сайти та публічні канали.</p>}
     </div>
   );
 }
