@@ -46,7 +46,7 @@ export default function SearchBar({ onSearch, loading }: SearchBarProps) {
         <button
           type="button"
           onClick={() => setShowStore(!showStore)}
-          className="w-max max-w-full text-left text-[13px] text-gray-500 transition-colors hover:text-vivat"
+          className="inline-flex w-max max-w-full items-center gap-1 text-left text-[13px] leading-5 text-gray-500 transition-colors hover:text-vivat"
         >
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={`transition-transform ${showStore ? 'rotate-90' : ''}`}>
             <polyline points="9 18 15 12 9 6"></polyline>

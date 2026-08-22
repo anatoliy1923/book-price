@@ -219,11 +219,6 @@ export default function Home() {
         </div>
       )}
 
-      {!loading && !result && !error && (
-        <div className="mt-12 border-t border-vivat-light pt-5 text-gray-400">
-          <p className="text-[14px] leading-6">Наприклад: <span className="font-medium text-vivat">«Тигролови» Багряний</span> або назва без автора.</p>
-        </div>
-      )}
     </div>
   );
 }
