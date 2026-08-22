@@ -11,6 +11,7 @@ export default function PromotionsPage() {
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [checkedAt, setCheckedAt] = useState<string | null>(null);
+  const [canRefresh, setCanRefresh] = useState(false);
 
   const fetchPromos = async (force: boolean = false) => {
     try {
@@ -20,6 +21,7 @@ export default function PromotionsPage() {
       if (data.promos) {
         setPromos(data.promos);
         setCheckedAt(data.checkedAt || null);
+        setCanRefresh(Boolean(data.canRefresh));
       } else {
         setError('Не вдалося завантажити акції');
       }
@@ -39,7 +41,7 @@ export default function PromotionsPage() {
     <div className="animate-in fade-in duration-500">
       <div className="flex justify-between items-start gap-4 border-b border-vivat-light pb-6">
         <div><p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-vivat-accent">Добірка пропозицій</p><h1 className="font-book text-[40px] leading-none tracking-[-0.05em] text-vivat-dark sm:text-[46px]">Акції</h1></div>
-        <button
+        {canRefresh && <button
           onClick={() => fetchPromos(true)}
           disabled={loading || refreshing}
           className={`shrink-0 rounded-lg border border-vivat-light bg-white px-3 py-2 text-[13px] font-semibold text-vivat-dark transition-all flex items-center gap-2 ${
@@ -51,7 +53,7 @@ export default function PromotionsPage() {
             <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"></path>
           </svg>
           {refreshing ? 'Оновлення...' : 'Оновити'}
-        </button>
+        </button>}
       </div>
       
       <p className="mb-8 mt-5 max-w-md text-[15px] leading-6 text-gray-500">
@@ -105,7 +107,7 @@ export default function PromotionsPage() {
           ))}
         </div>
       )}
-      {!loading && !error && checkedAt && <p className="mt-7 text-center text-xs text-gray-400">Перевірено {new Date(checkedAt).toLocaleString('uk-UA', { dateStyle: 'short', timeStyle: 'short' })}. Джерела: офіційні сайти та публічні канали.</p>}
+      {!loading && !error && checkedAt && <p className="mt-7 text-center text-xs text-gray-400">Перевірено {new Date(checkedAt).toLocaleString('uk-UA', { dateStyle: 'short', timeStyle: 'short' })}. Джерела: офіційні сайти, публічні канали та перевірені сторінки акцій.</p>}
     </div>
   );
 }
