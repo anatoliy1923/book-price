@@ -7,9 +7,14 @@
   --foreground: #1D1D1F;
 }
 
+html { width: 100%; overflow-x: clip; background: var(--background); }
+*, *::before, *::after { box-sizing: border-box; }
 body {
+  width: 100%; min-width: 0; overflow-x: clip;
   color: var(--foreground);
   background: var(--background);
   font-family: -apple-system, BlinkMacSystemFont, "Inter", sans-serif;
   -webkit-font-smoothing: antialiased;
 }
+img, svg, video, canvas { max-width: 100%; }
+button, input, textarea, select { font: inherit; }

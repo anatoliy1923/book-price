@@ -1,7 +1,7 @@
 import { AppRole } from './auth';
 import { supabaseAdmin } from './supabase-server';
 
-const SEARCH_LIMITS: Record<AppRole, { monthly: number; daily: number }> = {
+export const SEARCH_LIMITS: Record<AppRole, { monthly: number; daily: number }> = {
   free: { monthly: 20, daily: 2 },
   plus: { monthly: 60, daily: 5 },
   admin: { monthly: 10_000, daily: 100 },
