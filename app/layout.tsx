@@ -28,7 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className="antialiased bg-background">
         <header className="h-[60px] border-b border-vivat-light bg-background/95 backdrop-blur-md sticky top-0 z-50">
           <div className="max-w-[680px] mx-auto h-full px-4 sm:px-5 flex justify-between items-center">
-            <Link href="/" className="font-book text-[23px] font-bold tracking-[-0.04em] text-vivat-dark transition-opacity hover:opacity-70">
+            <Link href="/" className="text-[19px] font-bold tracking-tight text-vivat-dark transition-opacity hover:opacity-70">
               Книжки
             </Link>
             <div className="hidden sm:flex items-center gap-1">
