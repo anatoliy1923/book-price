@@ -24,6 +24,14 @@ body {
 }
 img, svg, video, canvas { max-width: 100%; }
 button, input, textarea, select { font: inherit; }
+/* iOS Safari zooms a page when a focused form control computes below 16px. */
+@media (max-width: 767px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+}
 ::selection { background: #DDEDE4; color: #0A422D; }
 :focus-visible { outline: 3px solid rgba(227, 168, 87, 0.55); outline-offset: 3px; }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; animation-duration: 0.01ms !important; } }
